@@ -1,4 +1,4 @@
-Place a default pour sound here as default.wav (or set another file via CMS).
+Lägg ett standardljud för tappning här som default.wav (eller ange en annan fil via CMS).
 
-Suggested: a short .wav clip. On the Pi, install ffmpeg or alsa-utils so playback works:
+Tips: en kort .wav-fil. På Pi:n, installera ffmpeg eller alsa-utils så uppspelning fungerar:
   sudo apt install -y ffmpeg

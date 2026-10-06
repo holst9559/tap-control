@@ -51,6 +51,10 @@ function seedDefaults() {
     setSetting('display_units', 'liters');
   }
 
+  if (!getSetting('ui_theme')) {
+    setSetting('ui_theme', 'amber');
+  }
+
   const tapCount = db.prepare('SELECT COUNT(*) AS count FROM taps').get().count;
   if (tapCount > 0) {
     return;
@@ -80,7 +84,7 @@ function seedDefaults() {
     });
 
     const result = insertKeg.run({
-      name: `Beer ${tap.id}`,
+      name: `Öl ${tap.id}`,
       brewery: null,
       notes: null,
       capacity_ml: config.defaultKegCapacityMl,

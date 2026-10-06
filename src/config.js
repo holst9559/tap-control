@@ -25,9 +25,9 @@ const config = {
 
   // BCM pin numbers for taps 1–3 (edit to match your wiring)
   defaultTaps: [
-    { id: 1, name: 'Tap 1', gpioPin: 17 },
-    { id: 2, name: 'Tap 2', gpioPin: 27 },
-    { id: 3, name: 'Tap 3', gpioPin: 22 },
+    { id: 1, name: 'Kran 1', gpioPin: 17 },
+    { id: 2, name: 'Kran 2', gpioPin: 27 },
+    { id: 3, name: 'Kran 3', gpioPin: 22 },
   ],
 
   defaultKegCapacityMl: 18927, // ~5 gal US

@@ -89,11 +89,11 @@ function createKeg(input) {
   let remaining = input.remaining_ml != null ? Number(input.remaining_ml) : capacity;
 
   if (!Number.isFinite(capacity) || capacity <= 0) {
-    throw new Error('capacity_ml must be a positive number');
+    throw new Error('capacity_ml måste vara ett positivt tal');
   }
 
   if (!Number.isFinite(remaining) || remaining < 0) {
-    throw new Error('remaining_ml must be a non-negative number');
+    throw new Error('remaining_ml får inte vara negativt');
   }
 
   if (remaining > capacity) {
@@ -109,7 +109,7 @@ function createKeg(input) {
   `,
     )
     .run({
-      name: String(input.name || 'Untitled').trim(),
+      name: String(input.name || 'Namnlös').trim(),
       brewery: input.brewery ? String(input.brewery).trim() : null,
       notes: input.notes ? String(input.notes).trim() : null,
       capacity_ml: capacity,
@@ -128,7 +128,7 @@ function updateKeg(kegId, input) {
   const db = getDb();
   const existing = getKeg(kegId);
   if (!existing) {
-    throw new Error('Keg not found');
+    throw new Error('Fatet hittades inte');
   }
 
   const name = input.name != null ? String(input.name).trim() : existing.name;
@@ -146,11 +146,11 @@ function updateKeg(kegId, input) {
   let status = input.status != null ? String(input.status) : existing.status;
 
   if (!Number.isFinite(capacity) || capacity <= 0) {
-    throw new Error('capacity_ml must be a positive number');
+    throw new Error('capacity_ml måste vara ett positivt tal');
   }
 
   if (!Number.isFinite(remaining) || remaining < 0) {
-    throw new Error('remaining_ml must be a non-negative number');
+    throw new Error('remaining_ml får inte vara negativt');
   }
 
   if (remaining > capacity) {
@@ -188,7 +188,7 @@ function updateKeg(kegId, input) {
   });
 
   const keg = getKeg(kegId);
-  hub.broadcast('status', { taps: listTaps() });
+  hub.broadcast('status', getStatus());
   hub.broadcast('kegs_changed', { kegs: listKegs() });
   return keg;
 }
@@ -221,7 +221,7 @@ function assignKegToTap(tapId, input) {
   const db = getDb();
   const tap = getTap(tapId);
   if (!tap) {
-    throw new Error('Tap not found');
+    throw new Error('Kranen hittades inte');
   }
 
   let kegId = input.keg_id != null ? Number(input.keg_id) : null;
@@ -239,12 +239,12 @@ function assignKegToTap(tapId, input) {
   }
 
   if (!kegId) {
-    throw new Error('keg_id or create payload required');
+    throw new Error('keg_id eller skapa-payload krävs');
   }
 
   const keg = getKeg(kegId);
   if (!keg) {
-    throw new Error('Keg not found');
+    throw new Error('Fatet hittades inte');
   }
 
   const tx = db.transaction(assignKegTx);
@@ -257,7 +257,7 @@ function assignKegToTap(tapId, input) {
   });
 
   const updated = getTap(tapId);
-  hub.broadcast('status', { taps: listTaps() });
+  hub.broadcast('status', getStatus());
   hub.broadcast('kegs_changed', { kegs: listKegs() });
   return updated;
 }
@@ -266,7 +266,7 @@ function updateTap(tapId, input) {
   const db = getDb();
   const tap = getTap(tapId);
   if (!tap) {
-    throw new Error('Tap not found');
+    throw new Error('Kranen hittades inte');
   }
 
   const name = input.name != null ? String(input.name).trim() : tap.name;
@@ -275,7 +275,7 @@ function updateTap(tapId, input) {
   const soundFile = input.sound_file !== undefined ? input.sound_file || null : tap.sound_file;
 
   if (!Number.isFinite(pulses) || pulses <= 0) {
-    throw new Error('pulses_per_liter must be a positive number');
+    throw new Error('pulses_per_liter måste vara ett positivt tal');
   }
 
   db.prepare(
@@ -294,7 +294,7 @@ function updateTap(tapId, input) {
   });
 
   const updated = getTap(tapId);
-  hub.broadcast('status', { taps: listTaps() });
+  hub.broadcast('status', getStatus());
   return updated;
 }
 
@@ -349,9 +349,41 @@ function listPours(limit) {
     .all(max);
 }
 
+function listRecentPoursForTap(tapId, limit) {
+  const db = getDb();
+  const max = Number(limit) || 5;
+  return db
+    .prepare(
+      `
+    SELECT
+      id,
+      tap_id,
+      started_at,
+      ended_at,
+      volume_ml
+    FROM pours
+    WHERE tap_id = ?
+    ORDER BY started_at DESC
+    LIMIT ?
+  `,
+    )
+    .all(tapId, max);
+}
+
+function attachRecentPours(taps) {
+  const result = [];
+  for (const tap of taps) {
+    result.push({
+      ...tap,
+      recent_pours: listRecentPoursForTap(tap.id, 5),
+    });
+  }
+  return result;
+}
+
 function getStatus() {
   return {
-    taps: listTaps(),
+    taps: attachRecentPours(listTaps()),
   };
 }
 

@@ -1,15 +1,16 @@
 <!doctype html>
-<html lang="en">
+<html lang="sv">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tap Control CMS</title>
+    <link rel="stylesheet" href="/themes.css" />
     <link rel="stylesheet" href="/admin/admin.css" />
   </head>
   <body>
     <div id="login-view" class="panel login-panel">
       <h1>Tap Control</h1>
-      <p class="muted">Enter CMS PIN to manage kegs</p>
+      <p class="muted">Ange CMS-PIN för att hantera fat</p>
       <form id="login-form">
         <label>
           PIN
@@ -21,7 +22,7 @@
             required
           />
         </label>
-        <button type="submit">Unlock</button>
+        <button type="submit">Lås upp</button>
         <p id="login-error" class="error" hidden></p>
       </form>
     </div>
@@ -30,188 +31,204 @@
       <header class="topbar">
         <div>
           <h1>CMS</h1>
-          <p class="muted">Local network keg management</p>
+          <p class="muted">Fatshantering i det lokala nätverket</p>
         </div>
-        <button id="logout-btn" type="button" class="secondary">Log out</button>
+        <button id="logout-btn" type="button" class="secondary">Logga ut</button>
       </header>
 
       <section class="panel">
-        <h2>Live taps</h2>
+        <h2>Live-kranar</h2>
         <div id="live-taps" class="tap-grid"></div>
       </section>
 
       <section class="panel">
-        <h2>Swap / assign keg</h2>
+        <h2>Byt / koppla fat</h2>
         <form id="assign-form" class="form-grid">
           <label>
-            Tap
+            Kran
             <select id="assign-tap" required></select>
           </label>
           <label>
-            Mode
+            Läge
             <select id="assign-mode">
-              <option value="create">Create new keg</option>
-              <option value="existing">Use existing keg</option>
+              <option value="create">Skapa nytt fat</option>
+              <option value="existing">Använd befintligt fat</option>
             </select>
           </label>
           <label id="existing-keg-wrap" hidden>
-            Existing keg
+            Befintligt fat
             <select id="assign-existing"></select>
           </label>
           <label>
-            Beer name
+            Ölnamn
             <input id="assign-name" type="text" placeholder="IPA" />
           </label>
           <label>
-            Brewery
-            <input id="assign-brewery" type="text" placeholder="Optional" />
+            Bryggeri
+            <input id="assign-brewery" type="text" placeholder="Valfritt" />
           </label>
           <label>
-            Capacity (ml)
+            Kapacitet (ml)
             <input id="assign-capacity" type="number" min="1" step="1" value="18927" />
           </label>
           <label>
-            Remaining (ml)
+            Kvar (ml)
             <input id="assign-remaining" type="number" min="0" step="1" value="18927" />
           </label>
           <label>
-            Previous keg becomes
+            Föregående fat blir
             <select id="assign-previous-status">
-              <option value="stored">Stored</option>
-              <option value="empty">Empty</option>
+              <option value="stored">Lagrat</option>
+              <option value="empty">Tomt</option>
             </select>
           </label>
-          <button type="submit">Assign to tap</button>
+          <button type="submit">Koppla till kran</button>
         </form>
         <p id="assign-msg" class="msg" hidden></p>
       </section>
 
       <section class="panel">
-        <h2>Edit keg</h2>
+        <h2>Redigera fat</h2>
         <form id="edit-keg-form" class="form-grid">
           <label>
-            Keg
+            Fat
             <select id="edit-keg-id" required></select>
           </label>
           <label>
-            Name
+            Namn
             <input id="edit-name" type="text" required />
           </label>
           <label>
-            Brewery
+            Bryggeri
             <input id="edit-brewery" type="text" />
           </label>
           <label>
-            Capacity (ml)
+            Kapacitet (ml)
             <input id="edit-capacity" type="number" min="1" step="1" required />
           </label>
           <label>
-            Remaining (ml)
+            Kvar (ml)
             <input id="edit-remaining" type="number" min="0" step="1" required />
           </label>
           <label>
             Status
             <select id="edit-status">
-              <option value="on_tap">On tap</option>
-              <option value="stored">Stored</option>
-              <option value="empty">Empty</option>
+              <option value="on_tap">På kran</option>
+              <option value="stored">Lagrat</option>
+              <option value="empty">Tomt</option>
             </select>
           </label>
           <label>
-            Notes
+            Anteckningar
             <input id="edit-notes" type="text" />
           </label>
-          <button type="submit">Save keg</button>
+          <button type="submit">Spara fat</button>
         </form>
         <p id="edit-msg" class="msg" hidden></p>
       </section>
 
       <section class="panel">
-        <h2>Tap settings &amp; calibration</h2>
+        <h2>Kraninställningar &amp; kalibrering</h2>
         <form id="tap-form" class="form-grid">
           <label>
-            Tap
+            Kran
             <select id="tap-id" required></select>
           </label>
           <label>
-            Display name
+            Visningsnamn
             <input id="tap-name" type="text" required />
           </label>
           <label>
-            Pulses per liter
+            Pulser per liter
             <input id="tap-ppl" type="number" min="1" step="0.1" required />
           </label>
           <label>
-            Pour sound
+            Tappningsljud
             <select id="tap-sound"></select>
           </label>
-          <button type="submit">Save tap</button>
+          <button type="submit">Spara kran</button>
         </form>
         <div class="cal-row">
-          <button id="cal-start" type="button" class="secondary">Start calibration</button>
-          <button id="cal-cancel" type="button" class="secondary">Cancel</button>
+          <button id="cal-start" type="button" class="secondary">Starta kalibrering</button>
+          <button id="cal-cancel" type="button" class="secondary">Avbryt</button>
           <label>
-            Known volume poured (ml)
+            Känd tappad volym (ml)
             <input id="cal-volume" type="number" min="1" step="1" value="500" />
           </label>
-          <button id="cal-finish" type="button">Finish &amp; save factor</button>
+          <button id="cal-finish" type="button">Avsluta &amp; spara faktor</button>
         </div>
-        <p id="cal-status" class="muted">Calibration idle</p>
+        <p id="cal-status" class="muted">Kalibrering inaktiv</p>
         <p id="tap-msg" class="msg" hidden></p>
       </section>
 
       <section class="panel">
-        <h2>Sounds &amp; settings</h2>
+        <h2>Visningstema</h2>
+        <p class="muted theme-hint">
+          Gäller kioskdisplayen och detta CMS. Säsongsteman: midsommar, lucia, jul, valborg,
+          kräftskiva, vinter.
+        </p>
+        <form id="theme-form" class="form-grid">
+          <label>
+            Tema
+            <select id="ui-theme"></select>
+          </label>
+          <button type="submit">Använd tema</button>
+        </form>
+        <p id="theme-msg" class="msg" hidden></p>
+      </section>
+
+      <section class="panel">
+        <h2>Ljud &amp; inställningar</h2>
         <form id="settings-form" class="form-grid">
           <label>
-            Default pour sound
+            Standardljud för tappning
             <select id="default-sound"></select>
           </label>
           <label>
-            Pour idle end (ms)
+            Idle-tid för tappningsslut (ms)
             <input id="pour-idle" type="number" min="500" step="100" />
           </label>
           <label>
-            Display units
+            Visningsenheter
             <select id="display-units">
-              <option value="liters">Liters</option>
-              <option value="ml">Milliliters</option>
+              <option value="liters">Liter</option>
+              <option value="ml">Milliliter</option>
             </select>
           </label>
-          <button type="submit">Save settings</button>
-          <button id="test-sound" type="button" class="secondary">Test default sound</button>
+          <button type="submit">Spara inställningar</button>
+          <button id="test-sound" type="button" class="secondary">Testa standardljud</button>
         </form>
         <form id="upload-form" class="form-grid">
           <label>
-            Upload sound (.wav / .mp3)
+            Ladda upp ljud (.wav / .mp3)
             <input id="sound-file" type="file" accept=".wav,.mp3,.ogg,audio/*" required />
           </label>
-          <button type="submit">Upload</button>
+          <button type="submit">Ladda upp</button>
         </form>
         <form id="pin-form" class="form-grid">
           <label>
-            Current PIN
+            Nuvarande PIN
             <input id="pin-current" type="password" required />
           </label>
           <label>
-            New PIN
+            Ny PIN
             <input id="pin-new" type="password" minlength="4" required />
           </label>
-          <button type="submit">Change PIN</button>
+          <button type="submit">Byt PIN</button>
         </form>
         <p id="settings-msg" class="msg" hidden></p>
       </section>
 
       <section class="panel">
-        <h2>Pour history</h2>
+        <h2>Tappningshistorik</h2>
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>When</th>
-                <th>Tap</th>
-                <th>Beer</th>
-                <th>Volume</th>
+                <th>När</th>
+                <th>Kran</th>
+                <th>Öl</th>
+                <th>Volym</th>
               </tr>
             </thead>
             <tbody id="pours-body"></tbody>
@@ -220,6 +237,7 @@
       </section>
     </div>
 
+    <script src="/theme.js"></script>
     <script src="/admin/admin.js"></script>
   </body>
 </html>

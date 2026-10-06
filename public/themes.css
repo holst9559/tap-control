@@ -1,0 +1,241 @@
+/* Shared theme tokens — applied via data-theme on <html> */
+
+:root,
+[data-theme='amber'] {
+  --bg-top: #1a1410;
+  --bg-bottom: #0d0b09;
+  --bg: #14110e;
+  --panel: #1f1a15;
+  --line: #3a3128;
+  --text: #f2e8d8;
+  --foam: #f3e6d0;
+  --muted: #a89880;
+  --accent: #d4923a;
+  --accent-dark: #a86a20;
+  --amber: #e8a84a;
+  --bar-empty: #2a221c;
+  --bar-fill: #c4782a;
+  --bar-fill-start: #8a4f18;
+  --danger: #c44b3a;
+  --ok: #6a9a4a;
+  --input-bg: #12100d;
+  --btn-text: #1a1208;
+  --glow: rgba(232, 168, 74, 0.12);
+  --font-display: 'Segoe UI', 'Trebuchet MS', sans-serif;
+  --font-body: 'Segoe UI', 'Trebuchet MS', sans-serif;
+  --theme-overlay: none;
+}
+
+/* —— Color themes —— */
+
+[data-theme='slate'] {
+  --bg-top: #1a2332;
+  --bg-bottom: #0b1018;
+  --bg: #10161f;
+  --panel: #182232;
+  --line: #2c3d52;
+  --text: #e4ebf4;
+  --foam: #e4ebf4;
+  --muted: #8fa3b8;
+  --accent: #6eb0e0;
+  --accent-dark: #3d7eab;
+  --amber: #8ec5e8;
+  --bar-empty: #1e2a3a;
+  --bar-fill: #4a8fbf;
+  --bar-fill-start: #2a5a7a;
+  --danger: #d4655a;
+  --ok: #5aad7a;
+  --input-bg: #0c121a;
+  --btn-text: #0b1018;
+  --glow: rgba(110, 176, 224, 0.14);
+}
+
+[data-theme='forest'] {
+  --bg-top: #142018;
+  --bg-bottom: #0a100c;
+  --bg: #0f1611;
+  --panel: #18241c;
+  --line: #2a3d30;
+  --text: #e4efe6;
+  --foam: #e4efe6;
+  --muted: #8fa894;
+  --accent: #7cb87a;
+  --accent-dark: #4a7a48;
+  --amber: #a8d49a;
+  --bar-empty: #1c2a20;
+  --bar-fill: #5a9a58;
+  --bar-fill-start: #2e5a30;
+  --danger: #c45a4a;
+  --ok: #6aad5a;
+  --input-bg: #0a100c;
+  --btn-text: #0a100c;
+  --glow: rgba(124, 184, 122, 0.14);
+}
+
+[data-theme='falu'] {
+  --bg-top: #2a1412;
+  --bg-bottom: #120a09;
+  --bg: #1a0e0c;
+  --panel: #281614;
+  --line: #4a2824;
+  --text: #f5e8e0;
+  --foam: #f5e8e0;
+  --muted: #b89888;
+  --accent: #c43c2c;
+  --accent-dark: #8a2818;
+  --amber: #e8a060;
+  --bar-empty: #2a1814;
+  --bar-fill: #b83828;
+  --bar-fill-start: #6a2018;
+  --danger: #e06050;
+  --ok: #7aaa5a;
+  --input-bg: #120a09;
+  --btn-text: #f5e8e0;
+  --glow: rgba(196, 60, 44, 0.16);
+}
+
+/* —— Seasonal themes (Sweden) —— */
+
+[data-theme='midsommar'] {
+  --bg-top: #2a3a28;
+  --bg-bottom: #141c14;
+  --bg: #1a2418;
+  --panel: #243022;
+  --line: #4a6040;
+  --text: #f4f0e4;
+  --foam: #f4f0e4;
+  --muted: #a8b890;
+  --accent: #e8d060;
+  --accent-dark: #a89030;
+  --amber: #f0e090;
+  --bar-empty: #2a3824;
+  --bar-fill: #7aaa50;
+  --bar-fill-start: #4a6a30;
+  --danger: #c05040;
+  --ok: #6aaa50;
+  --input-bg: #121810;
+  --btn-text: #1a2010;
+  --glow: rgba(232, 208, 96, 0.18);
+  --theme-overlay: radial-gradient(ellipse 80% 50% at 20% 0%, rgba(232, 208, 96, 0.1), transparent 55%),
+    radial-gradient(ellipse 60% 40% at 90% 100%, rgba(122, 170, 80, 0.12), transparent 50%);
+}
+
+[data-theme='lucia'] {
+  --bg-top: #1a1830;
+  --bg-bottom: #0a0814;
+  --bg: #100e1c;
+  --panel: #1c1a30;
+  --line: #3a3858;
+  --text: #f8f0e0;
+  --foam: #f8f0e0;
+  --muted: #a098b8;
+  --accent: #e8c060;
+  --accent-dark: #a88030;
+  --amber: #f0d080;
+  --bar-empty: #222038;
+  --bar-fill: #c8a040;
+  --bar-fill-start: #6a5020;
+  --danger: #d06060;
+  --ok: #6aaa70;
+  --input-bg: #0c0a16;
+  --btn-text: #1a1420;
+  --glow: rgba(232, 192, 96, 0.2);
+  --theme-overlay: radial-gradient(ellipse 50% 40% at 50% 0%, rgba(240, 208, 128, 0.16), transparent 60%),
+    radial-gradient(ellipse 70% 50% at 50% 100%, rgba(80, 60, 140, 0.2), transparent 55%);
+}
+
+[data-theme='jul'] {
+  --bg-top: #1e2418;
+  --bg-bottom: #0c100a;
+  --bg: #12180e;
+  --panel: #1e2818;
+  --line: #3a4830;
+  --text: #f4ece0;
+  --foam: #f4ece0;
+  --muted: #a89878;
+  --accent: #c84038;
+  --accent-dark: #8a2820;
+  --amber: #e8b050;
+  --bar-empty: #24301c;
+  --bar-fill: #b03830;
+  --bar-fill-start: #5a2818;
+  --danger: #e05048;
+  --ok: #6a9a48;
+  --input-bg: #0c100a;
+  --btn-text: #f4ece0;
+  --glow: rgba(200, 64, 56, 0.16);
+  --theme-overlay: radial-gradient(ellipse 55% 45% at 10% 10%, rgba(200, 64, 56, 0.12), transparent 50%),
+    radial-gradient(ellipse 50% 40% at 90% 90%, rgba(232, 176, 80, 0.1), transparent 50%);
+}
+
+[data-theme='valborg'] {
+  --bg-top: #2a1810;
+  --bg-bottom: #0e0a08;
+  --bg: #16100c;
+  --panel: #241812;
+  --line: #4a3020;
+  --text: #f8ece0;
+  --foam: #f8ece0;
+  --muted: #b89878;
+  --accent: #e87030;
+  --accent-dark: #a84818;
+  --amber: #f0a050;
+  --bar-empty: #2a1c14;
+  --bar-fill: #d06028;
+  --bar-fill-start: #7a3010;
+  --danger: #d04030;
+  --ok: #7aaa50;
+  --input-bg: #0e0a08;
+  --btn-text: #1a1008;
+  --glow: rgba(232, 112, 48, 0.2);
+  --theme-overlay: radial-gradient(ellipse 70% 55% at 50% 100%, rgba(232, 112, 48, 0.22), transparent 55%),
+    radial-gradient(ellipse 40% 30% at 50% 85%, rgba(255, 200, 80, 0.12), transparent 45%);
+}
+
+[data-theme='kraftskiva'] {
+  --bg-top: #2a1a18;
+  --bg-bottom: #120c0a;
+  --bg: #1a100e;
+  --panel: #281816;
+  --line: #4a3028;
+  --text: #fff0e4;
+  --foam: #fff0e4;
+  --muted: #c0a090;
+  --accent: #e85838;
+  --accent-dark: #a83820;
+  --amber: #f0a060;
+  --bar-empty: #2a1c18;
+  --bar-fill: #d04830;
+  --bar-fill-start: #7a2818;
+  --danger: #e04030;
+  --ok: #7aaa50;
+  --input-bg: #120c0a;
+  --btn-text: #1a1008;
+  --glow: rgba(232, 88, 56, 0.18);
+  --theme-overlay: radial-gradient(ellipse 60% 40% at 80% 0%, rgba(240, 160, 96, 0.12), transparent 50%),
+    radial-gradient(ellipse 50% 45% at 20% 100%, rgba(232, 88, 56, 0.14), transparent 50%);
+}
+
+[data-theme='vinter'] {
+  --bg-top: #1a2838;
+  --bg-bottom: #0a121c;
+  --bg: #0e1620;
+  --panel: #182430;
+  --line: #304858;
+  --text: #eef4f8;
+  --foam: #eef4f8;
+  --muted: #90a8b8;
+  --accent: #a8d0e8;
+  --accent-dark: #6088a0;
+  --amber: #d0e8f4;
+  --bar-empty: #1c2834;
+  --bar-fill: #70a8c8;
+  --bar-fill-start: #386078;
+  --danger: #d07070;
+  --ok: #70b090;
+  --input-bg: #0a1018;
+  --btn-text: #0a121c;
+  --glow: rgba(168, 208, 232, 0.16);
+  --theme-overlay: radial-gradient(ellipse 90% 50% at 50% -10%, rgba(220, 236, 248, 0.1), transparent 50%),
+    radial-gradient(ellipse 40% 30% at 15% 80%, rgba(160, 200, 230, 0.08), transparent 45%);
+}

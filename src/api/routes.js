@@ -7,6 +7,30 @@ const pourService = require('../services/pourService');
 const soundService = require('../services/soundService');
 const { getSetting, setSetting } = require('../db/client');
 const pulseMeter = require('../gpio/pulseMeter');
+const hub = require('../ws/hub');
+
+const ALLOWED_UI_THEMES = new Set([
+  'amber',
+  'slate',
+  'forest',
+  'falu',
+  'midsommar',
+  'lucia',
+  'jul',
+  'valborg',
+  'kraftskiva',
+  'vinter',
+]);
+
+function getSettingsPayload() {
+  const theme = getSetting('ui_theme');
+  return {
+    pour_idle_ms: Number(getSetting('pour_idle_ms')),
+    default_sound_file: getSetting('default_sound_file'),
+    display_units: getSetting('display_units'),
+    ui_theme: ALLOWED_UI_THEMES.has(theme) ? theme : 'amber',
+  };
+}
 
 function sendError(res, err, status) {
   const code = status || 400;
@@ -89,17 +113,13 @@ function onGetSounds(_req, res) {
 }
 
 function onGetSettingsPublic(_req, res) {
-  res.json({
-    pour_idle_ms: Number(getSetting('pour_idle_ms')),
-    default_sound_file: getSetting('default_sound_file'),
-    display_units: getSetting('display_units'),
-  });
+  res.json(getSettingsPayload());
 }
 
 function onLogin(req, res) {
   const token = auth.login(req.body && req.body.pin);
   if (!token) {
-    res.status(401).json({ error: 'Invalid PIN' });
+    res.status(401).json({ error: 'Ogiltig PIN' });
     return;
   }
   res.json({ token });
@@ -152,7 +172,7 @@ function onPutSettings(req, res) {
   if (body.pour_idle_ms != null) {
     const idle = Number(body.pour_idle_ms);
     if (!Number.isFinite(idle) || idle < 500) {
-      sendError(res, new Error('pour_idle_ms must be >= 500'));
+      sendError(res, new Error('pour_idle_ms måste vara >= 500'));
       return;
     }
     setSetting('pour_idle_ms', String(idle));
@@ -166,11 +186,18 @@ function onPutSettings(req, res) {
     setSetting('display_units', String(body.display_units));
   }
 
-  res.json({
-    pour_idle_ms: Number(getSetting('pour_idle_ms')),
-    default_sound_file: getSetting('default_sound_file'),
-    display_units: getSetting('display_units'),
-  });
+  if (body.ui_theme != null) {
+    const theme = String(body.ui_theme);
+    if (!ALLOWED_UI_THEMES.has(theme)) {
+      sendError(res, new Error('Okänt ui_theme'));
+      return;
+    }
+    setSetting('ui_theme', theme);
+  }
+
+  const settings = getSettingsPayload();
+  hub.broadcast('settings', settings);
+  res.json(settings);
 }
 
 function onChangePin(req, res) {
@@ -184,7 +211,7 @@ function onChangePin(req, res) {
 
 function onUploadSound(req, res) {
   if (!req.file) {
-    sendError(res, new Error('file is required'));
+    sendError(res, new Error('Fil krävs'));
     return;
   }
 
@@ -199,7 +226,7 @@ function onTestSound(req, res) {
   const file = req.body && req.body.sound_file;
   const resolved = soundService.resolveSoundPath(file);
   if (!resolved) {
-    sendError(res, new Error('Sound file not found'));
+    sendError(res, new Error('Ljudfilen hittades inte'));
     return;
   }
   soundService.playFile(resolved);

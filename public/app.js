@@ -12,11 +12,79 @@ function formatLiters(ml) {
   return `${mlToLiters(ml).toFixed(2)} L`;
 }
 
+function formatPourVolume(ml) {
+  const value = Number(ml) || 0;
+  if (value < 1000) {
+    return `${Math.round(value)} ml`;
+  }
+  return formatLiters(value);
+}
+
+function formatPourTime(iso) {
+  if (!iso) {
+    return '—';
+  }
+
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return '—';
+  }
+
+  return date.toLocaleString('sv-SE', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 function percentRemaining(tap) {
   if (!tap.capacity_ml || tap.capacity_ml <= 0) {
     return 0;
   }
   return Math.max(0, Math.min(100, (tap.remaining_ml / tap.capacity_ml) * 100));
+}
+
+function renderPourHistory(pours) {
+  const history = document.createElement('div');
+  history.className = 'pour-history';
+
+  const title = document.createElement('div');
+  title.className = 'pour-history-title';
+  title.textContent = 'Senaste tappningar';
+  history.appendChild(title);
+
+  const list = document.createElement('ul');
+  list.className = 'pour-history-list';
+
+  if (!pours || pours.length === 0) {
+    const empty = document.createElement('li');
+    empty.className = 'pour-history-empty';
+    empty.textContent = 'Inga tappningar ännu';
+    list.appendChild(empty);
+    history.appendChild(list);
+    return history;
+  }
+
+  for (const pour of pours) {
+    const row = document.createElement('li');
+    row.className = 'pour-row';
+
+    const time = document.createElement('time');
+    time.dateTime = pour.ended_at || pour.started_at || '';
+    time.textContent = formatPourTime(pour.ended_at || pour.started_at);
+
+    const volume = document.createElement('span');
+    volume.className = 'pour-volume';
+    volume.textContent = formatPourVolume(pour.volume_ml);
+
+    row.appendChild(time);
+    row.appendChild(volume);
+    list.appendChild(row);
+  }
+
+  history.appendChild(list);
+  return history;
 }
 
 function renderTap(tap) {
@@ -34,11 +102,13 @@ function renderTap(tap) {
 
   const beer = document.createElement('h2');
   beer.className = 'beer-name';
-  beer.textContent = tap.keg_name || 'No keg';
+  beer.textContent = tap.keg_name || 'Inget fat';
 
   const brewery = document.createElement('p');
   brewery.className = 'brewery';
   brewery.textContent = tap.keg_brewery || '';
+
+  const history = renderPourHistory(tap.recent_pours || []);
 
   const meter = document.createElement('div');
   meter.className = 'meter';
@@ -68,6 +138,7 @@ function renderTap(tap) {
   card.appendChild(label);
   card.appendChild(beer);
   card.appendChild(brewery);
+  card.appendChild(history);
   card.appendChild(meter);
 
   return card;
@@ -95,7 +166,7 @@ function onPourStart(payload) {
 function onPourEnd(payload) {
   pouringTapIds.delete(payload.tapId);
   const liters = formatLiters(payload.volumeMl);
-  lastPourEl.textContent = `Last pour · Tap ${payload.tapId} · ${liters}`;
+  lastPourEl.textContent = `Senaste tappning · Kran ${payload.tapId} · ${liters}`;
   renderAll();
 }
 
@@ -124,6 +195,11 @@ function handleWsMessage(event) {
 
   if (message.event === 'pour_update') {
     renderAll();
+    return;
+  }
+
+  if (message.event === 'settings' && message.payload) {
+    applyTheme(message.payload.ui_theme);
   }
 }
 
@@ -138,15 +214,26 @@ function scheduleReconnect() {
   setTimeout(connectWs, 2000);
 }
 
+async function loadSettingsTheme() {
+  try {
+    const res = await fetch('/api/settings');
+    const data = await res.json();
+    applyTheme(data.ui_theme);
+  } catch (err) {
+    applyTheme(DEFAULT_THEME);
+  }
+}
+
 async function loadInitial() {
   try {
     const res = await fetch('/api/status');
     const data = await res.json();
     applyStatus(data);
   } catch (err) {
-    lastPourEl.textContent = 'Unable to reach server';
+    lastPourEl.textContent = 'Kan inte nå servern';
   }
 }
 
+loadSettingsTheme();
 loadInitial();
 connectWs();

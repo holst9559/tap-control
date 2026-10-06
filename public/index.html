@@ -1,19 +1,21 @@
 <!doctype html>
-<html lang="en">
+<html lang="sv">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tap Control</title>
+    <link rel="stylesheet" href="/themes.css" />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
     <main class="kiosk">
       <header class="kiosk-header">
         <h1 class="brand">Keezer</h1>
-        <p id="last-pour" class="last-pour">Waiting for pours…</p>
+        <p id="last-pour" class="last-pour">Väntar på tappningar…</p>
       </header>
       <section id="taps" class="taps" aria-live="polite"></section>
     </main>
+    <script src="/theme.js"></script>
     <script src="/app.js"></script>
   </body>
 </html>

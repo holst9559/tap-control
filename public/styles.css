@@ -1,16 +1,3 @@
-:root {
-  --bg-top: #1a1410;
-  --bg-bottom: #0d0b09;
-  --amber: #e8a84a;
-  --foam: #f3e6d0;
-  --muted: #a89880;
-  --bar-empty: #2a221c;
-  --bar-fill: #c4782a;
-  --danger: #c44b3a;
-  --font-display: 'Segoe UI', 'Trebuchet MS', sans-serif;
-  --font-body: 'Segoe UI', 'Trebuchet MS', sans-serif;
-}
-
 * {
   box-sizing: border-box;
 }
@@ -24,7 +11,18 @@ body {
   font-family: var(--font-body);
 }
 
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: var(--theme-overlay);
+}
+
 .kiosk {
+  position: relative;
+  z-index: 1;
   min-height: 100%;
   padding: 2.5rem 3rem;
   display: flex;
@@ -46,6 +44,7 @@ body {
   font-weight: 700;
   letter-spacing: 0.04em;
   color: var(--amber);
+  text-shadow: 0 0 40px var(--glow);
 }
 
 .last-pour {
@@ -87,6 +86,60 @@ body {
   margin: 0;
   color: var(--muted);
   font-size: 1rem;
+  min-height: 1.25rem;
+}
+
+.pour-history {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  flex: 1;
+  min-height: 9.5rem;
+  padding: 0.85rem 0 0.25rem;
+  border-top: 1px solid color-mix(in srgb, var(--muted) 28%, transparent);
+}
+
+.pour-history-title {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+}
+
+.pour-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.pour-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  font-size: 0.98rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+}
+
+.pour-row time {
+  color: var(--muted);
+}
+
+.pour-volume {
+  color: var(--foam);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.pour-history-empty {
+  color: var(--muted);
+  font-size: 0.92rem;
+  opacity: 0.85;
 }
 
 .meter {
@@ -94,6 +147,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  padding-top: 0.5rem;
 }
 
 .meter-bar {
@@ -106,7 +160,7 @@ body {
 .meter-fill {
   height: 100%;
   width: 0%;
-  background: linear-gradient(90deg, #8a4f18, var(--bar-fill), var(--amber));
+  background: linear-gradient(90deg, var(--bar-fill-start), var(--bar-fill), var(--amber));
   transition: width 0.25s ease;
 }
 

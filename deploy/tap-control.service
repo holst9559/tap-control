@@ -2,14 +2,18 @@
 Description=Tap Control keezer monitor
 After=network-online.target
 Wants=network-online.target
+# Node pigpio needs exclusive GPIO access — do not run pigpiod alongside this.
+Conflicts=pigpiod.service
 
 [Service]
 Type=simple
-User=pi
-WorkingDirectory=/home/pi/tap_control
+# pigpio requires root (gpioInitialise).
+User=root
+WorkingDirectory=/home/antonholst/tap-control
 Environment=NODE_ENV=production
 # Uncomment to force mock GPIO (dev only):
 # Environment=TAP_CONTROL_MOCK=1
+# If `which node` is not /usr/bin/node, change ExecStart to that path.
 ExecStart=/usr/bin/node src/index.js
 Restart=on-failure
 RestartSec=3

@@ -64,10 +64,14 @@ curl -X POST http://localhost:3000/api/debug/pulse/1 -H "Content-Type: applicati
 
 ```bash
 sudo apt update
-sudo apt install -y git build-essential python3 ffmpeg
-# pigpio-daemon
-sudo apt install -y pigpio
-sudo systemctl enable --now pigpiod
+sudo apt install -y git build-essential python3 ffmpeg pigpio
+```
+
+Node-paketet `pigpio` pratar **direkt** med GPIO (kräver root) och får **inte** köra samtidigt som daemonen `pigpiod`. Stäng av den om den är igång:
+
+```bash
+sudo systemctl stop pigpiod
+sudo systemctl disable pigpiod
 ```
 
 4. Kopiera detta repo till Pi:n (t.ex. `/home/pi/tap_control`) och:
@@ -76,17 +80,31 @@ sudo systemctl enable --now pigpiod
 cd /home/pi/tap_control
 npm install
 # valfritt: lägg en kort ljudfil i sounds/default.wav
-npm start
+sudo npm start
 ```
 
-5. Systemd (redigera `User=` / sökvägar i unit-filerna vid behov):
+(`sudo` behövs för GPIO. Utan sensorer: `TAP_CONTROL_MOCK=1 npm start`.)
+
+5. Systemd (unit-filerna är satta för `/home/antonholst/tap-control` — justera vid behov).
+   Appen kör som root för GPIO; kiosk kör Epiphany som din vanliga användare.
 
 ```bash
+# Se till att pigpiod inte kör (krockar med Node-pigpio)
+sudo systemctl stop pigpiod
+sudo systemctl disable pigpiod
+
+# Kontrollera Node-sökväg — måste matcha ExecStart i .service
+which node
+
 sudo cp deploy/tap-control.service /etc/systemd/system/
 sudo cp deploy/tap-control-kiosk.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now tap-control.service
 sudo systemctl enable --now tap-control-kiosk.service
+
+# Om något failar:
+sudo systemctl status tap-control --no-pager
+sudo journalctl -u tap-control -n 40 --no-pager
 ```
 
 6. LAN-åtkomst: använd `http://<pi-hostname>.local:3000/admin` (Avahi/mDNS) eller Pi:ns IP. Appen binder `0.0.0.0:3000` som standard.

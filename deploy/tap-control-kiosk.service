@@ -1,13 +1,15 @@
 [Unit]
-Description=Tap Control Chromium kiosk
+Description=Tap Control Epiphany kiosk
 After=graphical.target tap-control.service
 Wants=tap-control.service
 
 [Service]
 Type=simple
-User=pi
+User=antonholst
 Environment=DISPLAY=:0
-ExecStart=/usr/bin/chromium-browser --kiosk --noerrdialogs --disable-infobars --check-for-update-interval=31536000 http://localhost:3000/
+Environment=XAUTHORITY=/home/antonholst/.Xauthority
+# Application mode = minimal chrome; closest to kiosk for Epiphany.
+ExecStart=/usr/bin/epiphany --application-mode http://localhost:3000/
 Restart=on-failure
 RestartSec=5
 

@@ -1,0 +1,18 @@
+[Unit]
+Description=Tap Control keezer monitor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/tap_control
+Environment=NODE_ENV=production
+# Uncomment to force mock GPIO (dev only):
+# Environment=TAP_CONTROL_MOCK=1
+ExecStart=/usr/bin/node src/index.js
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

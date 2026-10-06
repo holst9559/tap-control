@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tap Control CMS</title>
+    <link rel="stylesheet" href="/admin/admin.css" />
+  </head>
+  <body>
+    <div id="login-view" class="panel login-panel">
+      <h1>Tap Control</h1>
+      <p class="muted">Enter CMS PIN to manage kegs</p>
+      <form id="login-form">
+        <label>
+          PIN
+          <input
+            id="pin-input"
+            type="password"
+            inputmode="numeric"
+            autocomplete="current-password"
+            required
+          />
+        </label>
+        <button type="submit">Unlock</button>
+        <p id="login-error" class="error" hidden></p>
+      </form>
+    </div>
+
+    <div id="app-view" class="app" hidden>
+      <header class="topbar">
+        <div>
+          <h1>CMS</h1>
+          <p class="muted">Local network keg management</p>
+        </div>
+        <button id="logout-btn" type="button" class="secondary">Log out</button>
+      </header>
+
+      <section class="panel">
+        <h2>Live taps</h2>
+        <div id="live-taps" class="tap-grid"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Swap / assign keg</h2>
+        <form id="assign-form" class="form-grid">
+          <label>
+            Tap
+            <select id="assign-tap" required></select>
+          </label>
+          <label>
+            Mode
+            <select id="assign-mode">
+              <option value="create">Create new keg</option>
+              <option value="existing">Use existing keg</option>
+            </select>
+          </label>
+          <label id="existing-keg-wrap" hidden>
+            Existing keg
+            <select id="assign-existing"></select>
+          </label>
+          <label>
+            Beer name
+            <input id="assign-name" type="text" placeholder="IPA" />
+          </label>
+          <label>
+            Brewery
+            <input id="assign-brewery" type="text" placeholder="Optional" />
+          </label>
+          <label>
+            Capacity (ml)
+            <input id="assign-capacity" type="number" min="1" step="1" value="18927" />
+          </label>
+          <label>
+            Remaining (ml)
+            <input id="assign-remaining" type="number" min="0" step="1" value="18927" />
+          </label>
+          <label>
+            Previous keg becomes
+            <select id="assign-previous-status">
+              <option value="stored">Stored</option>
+              <option value="empty">Empty</option>
+            </select>
+          </label>
+          <button type="submit">Assign to tap</button>
+        </form>
+        <p id="assign-msg" class="msg" hidden></p>
+      </section>
+
+      <section class="panel">
+        <h2>Edit keg</h2>
+        <form id="edit-keg-form" class="form-grid">
+          <label>
+            Keg
+            <select id="edit-keg-id" required></select>
+          </label>
+          <label>
+            Name
+            <input id="edit-name" type="text" required />
+          </label>
+          <label>
+            Brewery
+            <input id="edit-brewery" type="text" />
+          </label>
+          <label>
+            Capacity (ml)
+            <input id="edit-capacity" type="number" min="1" step="1" required />
+          </label>
+          <label>
+            Remaining (ml)
+            <input id="edit-remaining" type="number" min="0" step="1" required />
+          </label>
+          <label>
+            Status
+            <select id="edit-status">
+              <option value="on_tap">On tap</option>
+              <option value="stored">Stored</option>
+              <option value="empty">Empty</option>
+            </select>
+          </label>
+          <label>
+            Notes
+            <input id="edit-notes" type="text" />
+          </label>
+          <button type="submit">Save keg</button>
+        </form>
+        <p id="edit-msg" class="msg" hidden></p>
+      </section>
+
+      <section class="panel">
+        <h2>Tap settings &amp; calibration</h2>
+        <form id="tap-form" class="form-grid">
+          <label>
+            Tap
+            <select id="tap-id" required></select>
+          </label>
+          <label>
+            Display name
+            <input id="tap-name" type="text" required />
+          </label>
+          <label>
+            Pulses per liter
+            <input id="tap-ppl" type="number" min="1" step="0.1" required />
+          </label>
+          <label>
+            Pour sound
+            <select id="tap-sound"></select>
+          </label>
+          <button type="submit">Save tap</button>
+        </form>
+        <div class="cal-row">
+          <button id="cal-start" type="button" class="secondary">Start calibration</button>
+          <button id="cal-cancel" type="button" class="secondary">Cancel</button>
+          <label>
+            Known volume poured (ml)
+            <input id="cal-volume" type="number" min="1" step="1" value="500" />
+          </label>
+          <button id="cal-finish" type="button">Finish &amp; save factor</button>
+        </div>
+        <p id="cal-status" class="muted">Calibration idle</p>
+        <p id="tap-msg" class="msg" hidden></p>
+      </section>
+
+      <section class="panel">
+        <h2>Sounds &amp; settings</h2>
+        <form id="settings-form" class="form-grid">
+          <label>
+            Default pour sound
+            <select id="default-sound"></select>
+          </label>
+          <label>
+            Pour idle end (ms)
+            <input id="pour-idle" type="number" min="500" step="100" />
+          </label>
+          <label>
+            Display units
+            <select id="display-units">
+              <option value="liters">Liters</option>
+              <option value="ml">Milliliters</option>
+            </select>
+          </label>
+          <button type="submit">Save settings</button>
+          <button id="test-sound" type="button" class="secondary">Test default sound</button>
+        </form>
+        <form id="upload-form" class="form-grid">
+          <label>
+            Upload sound (.wav / .mp3)
+            <input id="sound-file" type="file" accept=".wav,.mp3,.ogg,audio/*" required />
+          </label>
+          <button type="submit">Upload</button>
+        </form>
+        <form id="pin-form" class="form-grid">
+          <label>
+            Current PIN
+            <input id="pin-current" type="password" required />
+          </label>
+          <label>
+            New PIN
+            <input id="pin-new" type="password" minlength="4" required />
+          </label>
+          <button type="submit">Change PIN</button>
+        </form>
+        <p id="settings-msg" class="msg" hidden></p>
+      </section>
+
+      <section class="panel">
+        <h2>Pour history</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>When</th>
+                <th>Tap</th>
+                <th>Beer</th>
+                <th>Volume</th>
+              </tr>
+            </thead>
+            <tbody id="pours-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <script src="/admin/admin.js"></script>
+  </body>
+</html>

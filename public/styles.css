@@ -1,0 +1,136 @@
+:root {
+  --bg-top: #1a1410;
+  --bg-bottom: #0d0b09;
+  --amber: #e8a84a;
+  --foam: #f3e6d0;
+  --muted: #a89880;
+  --bar-empty: #2a221c;
+  --bar-fill: #c4782a;
+  --danger: #c44b3a;
+  --font-display: 'Segoe UI', 'Trebuchet MS', sans-serif;
+  --font-body: 'Segoe UI', 'Trebuchet MS', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: radial-gradient(ellipse at top, var(--bg-top), var(--bg-bottom));
+  color: var(--foam);
+  font-family: var(--font-body);
+}
+
+.kiosk {
+  min-height: 100%;
+  padding: 2.5rem 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.kiosk-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.brand {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--amber);
+}
+
+.last-pour {
+  margin: 0;
+  color: var(--muted);
+  font-size: 1.1rem;
+}
+
+.taps {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+  align-items: stretch;
+}
+
+.tap-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.5rem 0;
+}
+
+.tap-label {
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+
+.beer-name {
+  margin: 0;
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.brewery {
+  margin: 0;
+  color: var(--muted);
+  font-size: 1rem;
+}
+
+.meter {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.meter-bar {
+  height: 1.25rem;
+  background: var(--bar-empty);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.meter-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #8a4f18, var(--bar-fill), var(--amber));
+  transition: width 0.25s ease;
+}
+
+.meter-fill.low {
+  background: linear-gradient(90deg, #6a2018, var(--danger));
+}
+
+.meter-stats {
+  display: flex;
+  justify-content: space-between;
+  font-size: 1.35rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.pouring .beer-name {
+  color: var(--amber);
+}
+
+@media (max-width: 900px) {
+  .taps {
+    grid-template-columns: 1fr;
+  }
+
+  .kiosk {
+    padding: 1.5rem;
+  }
+}

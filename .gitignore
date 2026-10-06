@@ -1,0 +1,7 @@
+node_modules/
+data/
+uploads/sounds/*
+!uploads/sounds/.gitkeep
+*.db
+.env
+.DS_Store

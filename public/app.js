@@ -3,6 +3,8 @@ const lastPourEl = document.getElementById('last-pour');
 
 let tapsState = [];
 let pouringTapIds = new Set();
+const liteMode =
+  new URLSearchParams(location.search).has('lite') || localStorage.getItem('tap_control_lite') === '1';
 
 function mlToLiters(ml) {
   return (Number(ml) || 0) / 1000;
@@ -45,25 +47,26 @@ function percentRemaining(tap) {
   return Math.max(0, Math.min(100, (tap.remaining_ml / tap.capacity_ml) * 100));
 }
 
-function renderPourHistory(pours) {
-  const history = document.createElement('div');
-  history.className = 'pour-history';
+function pourHistoryKey(pours) {
+  if (!pours || pours.length === 0) {
+    return '';
+  }
+  let key = '';
+  for (const pour of pours) {
+    key += `${pour.id}:${pour.volume_ml};`;
+  }
+  return key;
+}
 
-  const title = document.createElement('div');
-  title.className = 'pour-history-title';
-  title.textContent = 'Senaste tappningar';
-  history.appendChild(title);
-
-  const list = document.createElement('ul');
-  list.className = 'pour-history-list';
+function fillPourHistoryList(list, pours) {
+  list.innerHTML = '';
 
   if (!pours || pours.length === 0) {
     const empty = document.createElement('li');
     empty.className = 'pour-history-empty';
     empty.textContent = 'Inga tappningar ännu';
     list.appendChild(empty);
-    history.appendChild(list);
-    return history;
+    return;
   }
 
   for (const pour of pours) {
@@ -82,33 +85,35 @@ function renderPourHistory(pours) {
     row.appendChild(volume);
     list.appendChild(row);
   }
-
-  history.appendChild(list);
-  return history;
 }
 
-function renderTap(tap) {
-  const pct = percentRemaining(tap);
-  const pouring = pouringTapIds.has(tap.id);
-  const low = pct <= 15;
-
+function createTapCard(tap) {
   const card = document.createElement('article');
-  card.className = 'tap-card' + (pouring ? ' pouring' : '');
+  card.className = 'tap-card';
   card.dataset.tapId = String(tap.id);
+  card.dataset.historyKey = '';
 
   const label = document.createElement('div');
   label.className = 'tap-label';
-  label.textContent = tap.name;
 
   const beer = document.createElement('h2');
   beer.className = 'beer-name';
-  beer.textContent = tap.keg_name || 'Inget fat';
 
   const brewery = document.createElement('p');
   brewery.className = 'brewery';
-  brewery.textContent = tap.keg_brewery || '';
 
-  const history = renderPourHistory(tap.recent_pours || []);
+  const history = document.createElement('div');
+  history.className = 'pour-history';
+
+  const historyTitle = document.createElement('div');
+  historyTitle.className = 'pour-history-title';
+  historyTitle.textContent = 'Senaste tappningar';
+
+  const historyList = document.createElement('ul');
+  historyList.className = 'pour-history-list';
+
+  history.appendChild(historyTitle);
+  history.appendChild(historyList);
 
   const meter = document.createElement('div');
   meter.className = 'meter';
@@ -117,17 +122,16 @@ function renderTap(tap) {
   bar.className = 'meter-bar';
 
   const fill = document.createElement('div');
-  fill.className = 'meter-fill' + (low ? ' low' : '');
-  fill.style.width = `${pct}%`;
+  fill.className = 'meter-fill';
 
   const stats = document.createElement('div');
   stats.className = 'meter-stats';
 
   const left = document.createElement('span');
-  left.textContent = tap.keg_id ? formatLiters(tap.remaining_ml) : '—';
+  left.className = 'meter-left';
 
   const right = document.createElement('span');
-  right.textContent = tap.keg_id ? `${pct.toFixed(0)}%` : '';
+  right.className = 'meter-right';
 
   bar.appendChild(fill);
   stats.appendChild(left);
@@ -144,11 +148,58 @@ function renderTap(tap) {
   return card;
 }
 
-function renderAll() {
-  tapsEl.innerHTML = '';
-  for (const tap of tapsState) {
-    tapsEl.appendChild(renderTap(tap));
+function updateTapCard(card, tap) {
+  const pct = percentRemaining(tap);
+  const pouring = pouringTapIds.has(tap.id);
+  const low = pct <= 15;
+  const historyKey = pourHistoryKey(tap.recent_pours);
+
+  card.className = 'tap-card' + (pouring ? ' pouring' : '');
+  card.querySelector('.tap-label').textContent = tap.name;
+  card.querySelector('.beer-name').textContent = tap.keg_name || 'Inget fat';
+  card.querySelector('.brewery').textContent = tap.keg_brewery || '';
+
+  if (card.dataset.historyKey !== historyKey) {
+    fillPourHistoryList(card.querySelector('.pour-history-list'), tap.recent_pours || []);
+    card.dataset.historyKey = historyKey;
   }
+
+  const fill = card.querySelector('.meter-fill');
+  fill.className = 'meter-fill' + (low ? ' low' : '');
+  fill.style.width = `${pct}%`;
+
+  card.querySelector('.meter-left').textContent = tap.keg_id ? formatLiters(tap.remaining_ml) : '—';
+  card.querySelector('.meter-right').textContent = tap.keg_id ? `${pct.toFixed(0)}%` : '';
+}
+
+function renderAll() {
+  const seen = new Set();
+
+  for (const tap of tapsState) {
+    seen.add(String(tap.id));
+    let card = tapsEl.querySelector(`[data-tap-id="${tap.id}"]`);
+    if (!card) {
+      card = createTapCard(tap);
+      tapsEl.appendChild(card);
+    }
+    updateTapCard(card, tap);
+  }
+
+  const cards = tapsEl.querySelectorAll('.tap-card');
+  for (const card of cards) {
+    if (!seen.has(card.dataset.tapId)) {
+      card.remove();
+    }
+  }
+}
+
+function findTap(tapId) {
+  for (const tap of tapsState) {
+    if (tap.id === tapId) {
+      return tap;
+    }
+  }
+  return null;
 }
 
 function applyStatus(payload) {
@@ -160,14 +211,40 @@ function applyStatus(payload) {
 
 function onPourStart(payload) {
   pouringTapIds.add(payload.tapId);
-  renderAll();
+  const tap = findTap(payload.tapId);
+  if (!tap) {
+    return;
+  }
+  const card = tapsEl.querySelector(`[data-tap-id="${tap.id}"]`);
+  if (card) {
+    updateTapCard(card, tap);
+  }
+}
+
+function onPourUpdate(payload) {
+  const tap = findTap(payload.tapId);
+  if (!tap) {
+    return;
+  }
+
+  if (payload.remainingMl != null) {
+    tap.remaining_ml = payload.remainingMl;
+  }
+  if (payload.capacityMl != null) {
+    tap.capacity_ml = payload.capacityMl;
+  }
+
+  pouringTapIds.add(payload.tapId);
+  const card = tapsEl.querySelector(`[data-tap-id="${tap.id}"]`);
+  if (card) {
+    updateTapCard(card, tap);
+  }
 }
 
 function onPourEnd(payload) {
   pouringTapIds.delete(payload.tapId);
   const liters = formatLiters(payload.volumeMl);
   lastPourEl.textContent = `Senaste tappning · Kran ${payload.tapId} · ${liters}`;
-  renderAll();
 }
 
 function handleWsMessage(event) {
@@ -194,12 +271,14 @@ function handleWsMessage(event) {
   }
 
   if (message.event === 'pour_update') {
-    renderAll();
+    onPourUpdate(message.payload);
     return;
   }
 
   if (message.event === 'settings' && message.payload) {
-    applyTheme(message.payload.ui_theme);
+    if (!liteMode) {
+      applyTheme(message.payload.ui_theme);
+    }
   }
 }
 
@@ -215,6 +294,13 @@ function scheduleReconnect() {
 }
 
 async function loadSettingsTheme() {
+  if (liteMode) {
+    document.documentElement.setAttribute('data-theme', 'amber');
+    document.documentElement.classList.add('lite');
+    document.body.classList.add('lite');
+    return;
+  }
+
   try {
     const res = await fetch('/api/settings');
     const data = await res.json();

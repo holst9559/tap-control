@@ -1,7 +1,8 @@
 #!/bin/bash
 # Start Epiphany fullscreen on the keezer UI (meant for desktop autostart).
 
-URL="${TAP_CONTROL_KIOSK_URL:-http://localhost:3000/}"
+# ?lite=1 = cheaper CSS/JS path for Pi Zero-class devices
+URL="${TAP_CONTROL_KIOSK_URL:-http://localhost:3000/?lite=1}"
 USER_HOME="${HOME:-/home/antonholst}"
 LOG="${TAP_CONTROL_KIOSK_LOG:-$USER_HOME/tap-control-kiosk.log}"
 

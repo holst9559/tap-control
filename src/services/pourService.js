@@ -96,14 +96,17 @@ function updateActivePour(tapId) {
     pour.lastReportedVolumeMl = pour.volumeMl;
   }
 
+  const tap = kegService.getTap(tapId);
   hub.broadcast('pour_update', {
     tapId,
     pourId: pour.id,
     pulseCount: pour.pulseCount,
     volumeMl: pour.volumeMl,
+    remainingMl: tap ? tap.remaining_ml : null,
+    capacityMl: tap ? tap.capacity_ml : null,
   });
 
-  hub.broadcast('status', kegService.getStatus());
+  // Avoid full status (incl. pour history queries) on every pulse — kiosk patches from pour_update.
   return pour;
 }
 

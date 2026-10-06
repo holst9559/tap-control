@@ -161,7 +161,7 @@ body::before {
   height: 100%;
   width: 0%;
   background: linear-gradient(90deg, var(--bar-fill-start), var(--bar-fill), var(--amber));
-  transition: width 0.25s ease;
+  transition: width 0.2s linear;
 }
 
 .meter-fill.low {

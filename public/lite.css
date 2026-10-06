@@ -1,0 +1,51 @@
+/* Low-power kiosk mode for Pi Zero-class devices (?lite=1) */
+
+html.lite,
+html.lite body,
+body.lite {
+  background: #12100d !important;
+}
+
+html.lite body::before,
+body.lite::before {
+  display: none !important;
+}
+
+html.lite .brand,
+body.lite .brand {
+  text-shadow: none !important;
+  font-size: 2.2rem !important;
+}
+
+html.lite .meter-fill,
+body.lite .meter-fill {
+  background: var(--bar-fill) !important;
+  transition: none !important;
+}
+
+html.lite .meter-fill.low,
+body.lite .meter-fill.low {
+  background: var(--danger) !important;
+}
+
+html.lite .pour-history,
+body.lite .pour-history {
+  border-top-color: #3a3128;
+  min-height: 0;
+}
+
+html.lite .beer-name,
+body.lite .beer-name {
+  font-size: 1.5rem !important;
+}
+
+html.lite .kiosk,
+body.lite .kiosk {
+  padding: 1.25rem 1.5rem;
+  gap: 1rem;
+}
+
+html.lite .taps,
+body.lite .taps {
+  gap: 1rem;
+}

@@ -69,7 +69,8 @@ try_fullscreen() {
 wait_for_display || true
 wait_for_app || true
 
-pkill -u "$(id -un)" -f 'epiphany.*localhost:3000' 2>/dev/null || true
+pkill -u "$(id -un)" -x epiphany 2>/dev/null || true
+pkill -u "$(id -un)" -f '/usr/bin/epiphany' 2>/dev/null || true
 sleep 1
 
 if [ ! -x /usr/bin/epiphany ]; then
@@ -77,7 +78,8 @@ if [ ! -x /usr/bin/epiphany ]; then
   exit 1
 fi
 
-/usr/bin/epiphany --application-mode "$URL" &
+# Newer Epiphany treats --application-mode's next arg as a .desktop file, not a URL.
+/usr/bin/epiphany --new-window "$URL" &
 EPID=$!
 echo "epiphany pid=$EPID"
 

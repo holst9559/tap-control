@@ -1,5 +1,5 @@
 [Unit]
-Description=Tap Control Epiphany kiosk
+Description=Tap Control Epiphany kiosk (legacy — prefer desktop autostart)
 After=graphical.target tap-control.service
 Wants=tap-control.service
 
@@ -10,9 +10,11 @@ Environment=DISPLAY=:0
 Environment=XAUTHORITY=/home/antonholst/.Xauthority
 Environment=XDG_RUNTIME_DIR=/run/user/1000
 Environment=HOME=/home/antonholst
+# Wait for auto-login / compositor; still less reliable than ~/.config/autostart
+ExecStartPre=/bin/sleep 15
 ExecStart=/home/antonholst/tap-control/deploy/start-kiosk.sh
 Restart=on-failure
-RestartSec=5
+RestartSec=8
 
 [Install]
 WantedBy=graphical.target

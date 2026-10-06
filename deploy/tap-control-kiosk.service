@@ -8,8 +8,9 @@ Type=simple
 User=antonholst
 Environment=DISPLAY=:0
 Environment=XAUTHORITY=/home/antonholst/.Xauthority
-# Application mode = minimal chrome; closest to kiosk for Epiphany.
-ExecStart=/usr/bin/epiphany --application-mode http://localhost:3000/
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+Environment=HOME=/home/antonholst
+ExecStart=/home/antonholst/tap-control/deploy/start-kiosk.sh
 Restart=on-failure
 RestartSec=5
 

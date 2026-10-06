@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Tap Control Kiosk
+Comment=Fullscreen Epiphany on localhost:3000
+Exec=/home/antonholst/tap-control/deploy/start-kiosk.sh
+X-GNOME-Autostart-enabled=true
+StartupNotify=false

@@ -107,6 +107,21 @@ sudo systemctl status tap-control --no-pager
 sudo journalctl -u tap-control -n 40 --no-pager
 ```
 
+Kiosk (Epiphany fullscreen) kräver **autologin till skrivbordet** (`sudo raspi-config` → System Options → Boot / Auto Login → Desktop). Hjälpverktyg:
+
+```bash
+sudo apt install -y epiphany-browser wmctrl xdotool curl
+chmod +x deploy/start-kiosk.sh
+
+# Om UID inte är 1000, ändra XDG_RUNTIME_DIR i tap-control-kiosk.service
+id -u
+
+sudo systemctl enable --now tap-control-kiosk.service
+sudo systemctl status tap-control-kiosk --no-pager
+```
+
+Alternativ till systemd-kiosk: kopiera `deploy/tap-control-kiosk.desktop` till `~/.config/autostart/` (startar när du loggar in grafiskt).
+
 6. LAN-åtkomst: använd `http://<pi-hostname>.local:3000/admin` (Avahi/mDNS) eller Pi:ns IP. Appen binder `0.0.0.0:3000` som standard.
 
 Valfritt värdnamn:

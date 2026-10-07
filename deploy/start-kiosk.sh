@@ -5,8 +5,13 @@
 URL="${TAP_CONTROL_KIOSK_URL:-http://localhost:3000/?lite=1}"
 USER_HOME="${HOME:-/home/antonholst}"
 LOG="${TAP_CONTROL_KIOSK_LOG:-$USER_HOME/tap-control-kiosk.log}"
-# Newer Epiphany requires this WebApp_ prefix for --application-mode --profile.
-PROFILE="${TAP_CONTROL_KIOSK_PROFILE:-$USER_HOME/.local/share/org.gnome.Epiphany.WebApp_tap-control-kiosk}"
+# Must match Epiphany's web-app id (underscore, not hyphen).
+APP_ID="${TAP_CONTROL_KIOSK_APP_ID:-org.gnome.Epiphany.WebApp_tap-control-kiosk}"
+PROFILE="${TAP_CONTROL_KIOSK_PROFILE:-$USER_HOME/.local/share/$APP_ID}"
+PORTAL_DESKTOP_DIR="$USER_HOME/.local/share/xdg-desktop-portal/applications"
+APPS_DESKTOP_DIR="$USER_HOME/.local/share/applications"
+PORTAL_DESKTOP="$PORTAL_DESKTOP_DIR/$APP_ID.desktop"
+APPS_DESKTOP="$APPS_DESKTOP_DIR/$APP_ID.desktop"
 
 exec >>"$LOG" 2>&1
 echo "---- $(date -Iseconds) kiosk start ----"
@@ -57,18 +62,13 @@ wait_for_app() {
 }
 
 hide_desktop_chrome() {
-  # Only hide the panel — killing pcmanfm blanks the wallpaper (black flash) if the
-  # browser fails to start. Fullscreen covers the desktop anyway.
   pkill -u "$(id -un)" -x wf-panel-pi 2>/dev/null || true
   pkill -u "$(id -un)" -x lxpanel 2>/dev/null || true
   echo "hid panel chrome (best-effort)"
 }
 
 try_fullscreen() {
-  # Wait for Epiphany to map; labwc window rule may already have fullscreened it.
   sleep 4
-
-  # Prefer additive fullscreen (does not toggle off if already fullscreen).
   if command -v wmctrl >/dev/null 2>&1; then
     if wmctrl -x -r epiphany.Epiphany -b add,fullscreen 2>/dev/null \
       || wmctrl -r :ACTIVE: -b add,fullscreen 2>/dev/null; then
@@ -76,8 +76,6 @@ try_fullscreen() {
       return 0
     fi
   fi
-
-  # F11 toggles — only send once, and only if additive tools failed.
   if command -v wtype >/dev/null 2>&1; then
     wtype -k F11 2>/dev/null && echo "fullscreen via wtype F11" && return 0
   fi
@@ -85,9 +83,53 @@ try_fullscreen() {
     xdotool search --class epiphany windowactivate --sync key F11 2>/dev/null \
       && echo "fullscreen via xdotool F11" && return 0
   fi
-
   echo "could not force fullscreen via tools (labwc window rule may still apply)"
   return 0
+}
+
+# Newer Epiphany looks up this desktop file via xdg-desktop-portal.
+ensure_webapp_desktop() {
+  mkdir -p "$PORTAL_DESKTOP_DIR" "$APPS_DESKTOP_DIR" "$PROFILE"
+  # Marker file Epiphany expects inside web-app profiles
+  : >"$PROFILE/.app"
+
+  local desktop
+  desktop=$(
+    cat <<EOF
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Tap Control
+Comment=Keezer kiosk
+Exec=epiphany --application-mode --profile=$PROFILE $URL
+Icon=web-browser
+Terminal=false
+Categories=GNOME;GTK;Network;
+StartupNotify=true
+StartupWMClass=$APP_ID
+NoDisplay=true
+EOF
+  )
+  printf '%s\n' "$desktop" >"$PORTAL_DESKTOP"
+  printf '%s\n' "$desktop" >"$APPS_DESKTOP"
+  echo "wrote web-app desktop: $PORTAL_DESKTOP"
+}
+
+launch_epiphany() {
+  /usr/bin/epiphany --application-mode --profile="$PROFILE" "$URL" &
+  EPID=$!
+  echo "epiphany application-mode pid=$EPID profile=$PROFILE"
+  sleep 3
+  if kill -0 "$EPID" 2>/dev/null; then
+    return 0
+  fi
+  wait "$EPID" || true
+  echo "application-mode failed (exit $?) — falling back to --new-window"
+  /usr/bin/epiphany --new-window "$URL" &
+  EPID=$!
+  echo "epiphany new-window pid=$EPID"
+  sleep 2
+  kill -0 "$EPID" 2>/dev/null
 }
 
 wait_for_display || true
@@ -96,6 +138,8 @@ wait_for_app || true
 pkill -u "$(id -un)" -x epiphany 2>/dev/null || true
 pkill -u "$(id -un)" -x epiphany-browser 2>/dev/null || true
 pkill -u "$(id -un)" -f '/usr/bin/epiphany' 2>/dev/null || true
+# Also kill by web-app id process name if present
+pkill -u "$(id -un)" -f "$APP_ID" 2>/dev/null || true
 sleep 1
 
 if [ ! -x /usr/bin/epiphany ]; then
@@ -103,20 +147,16 @@ if [ ! -x /usr/bin/epiphany ]; then
   exit 1
 fi
 
-# application-mode + correctly named profile (deploy/*.desktop is rejected as invalid).
-mkdir -p "$PROFILE"
-/usr/bin/epiphany --application-mode --profile="$PROFILE" "$URL" &
-EPID=$!
-echo "epiphany application-mode pid=$EPID profile=$PROFILE url=$URL"
+# Broken half-created web apps make Epiphany abort — recreate cleanly each boot.
+rm -rf "$PROFILE"
+ensure_webapp_desktop
 
-# Hide panel only after browser is up so a failed launch does not blank the desktop.
-sleep 2
-if kill -0 "$EPID" 2>/dev/null; then
-  hide_desktop_chrome
-else
-  echo "epiphany died immediately — leaving desktop chrome alone"
+if ! launch_epiphany; then
+  echo "error: could not start epiphany"
+  exit 1
 fi
 
+hide_desktop_chrome
 try_fullscreen &
 
 wait "$EPID"

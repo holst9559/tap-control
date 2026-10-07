@@ -157,19 +157,22 @@ hide_cursor() {
   fi
 
   # 2) Nudge pointer over the kiosk window so CSS cursor:none applies.
-  #    Needed on labwc < 0.8.4 where HideCursor does not exist — without a
-  #    move event the compositor keeps showing the default arrow after boot.
+  #    labwc < 0.8.4 has no HideCursor; Pi OS has no wlrctl package — use ydotool.
+  if command -v ydotool >/dev/null 2>&1; then
+    # Syntax varies by ydotool version
+    if ydotool mousemove --absolute -x 200 -y 200 2>/dev/null \
+      || ydotool mousemove -a 200 200 2>/dev/null \
+      || ydotool mousemove --absolute 200 200 2>/dev/null; then
+      echo "nudged pointer via ydotool (CSS cursor:none)"
+      return 0
+    fi
+  fi
   if command -v wlrctl >/dev/null 2>&1; then
-    wlrctl pointer move 120 120 2>/dev/null \
+    wlrctl pointer move 200 200 2>/dev/null \
       && echo "nudged pointer via wlrctl (CSS cursor:none)" \
       && return 0
   fi
-  if command -v ydotool >/dev/null 2>&1; then
-    ydotool mousemove -a 120 120 2>/dev/null \
-      && echo "nudged pointer via ydotool (CSS cursor:none)" \
-      && return 0
-  fi
-  echo "warning: no pointer nudge tool (install wlrctl). labwc $(labwc -v 2>/dev/null || echo '?') — HideCursor needs 0.8.4+"
+  echo "warning: cannot nudge pointer. On labwc 0.8.1 run: ./deploy/install-ydotool-cursor.sh"
 }
 
 (

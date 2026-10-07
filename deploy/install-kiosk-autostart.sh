@@ -33,10 +33,11 @@ echo "Removed $AUTOSTART_DIR/tap-control*.desktop (if any)"
 echo "== Cursor-hide tools =="
 LABWC_VER="$(labwc -v 2>/dev/null || labwc --version 2>/dev/null || echo unknown)"
 echo "labwc version: $LABWC_VER"
-# wtype: HideCursor keybind on 0.8.4+; wlrctl: nudge pointer so CSS cursor:none applies on older labwc
-sudo apt-get install -y wtype wlrctl 2>/dev/null || sudo apt-get install -y wtype || true
-if ! command -v wlrctl >/dev/null 2>&1; then
-  echo "note: wlrctl not in apt — on labwc < 0.8.4 cursor hide may need an OS/labwc upgrade"
+sudo apt-get install -y wtype || true
+# Pi OS has no wlrctl package. On labwc < 0.8.4 use ydotool to nudge the pointer.
+if ! echo "$LABWC_VER" | grep -qE '0\.8\.[4-9]|0\.9\.|0\.[1-9][0-9]'; then
+  echo "labwc < 0.8.4 — installing ydotool for pointer nudge..."
+  bash "$REPO_DIR/deploy/install-ydotool-cursor.sh" || true
 fi
 
 echo "== labwc autostart: kiosk + hide cursor =="

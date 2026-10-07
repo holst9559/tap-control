@@ -124,7 +124,7 @@ chmod +x deploy/install-kiosk-autostart.sh deploy/start-kiosk.sh
 # Log: ~/tap-control-kiosk.log
 ```
 
-The kiosk hides the taskbar (`wf-panel-pi`), runs Epiphany in application mode, and installs a labwc fullscreen rule. The UI (`?lite=1`) is locked to the screen height so the volume meters stay visible.
+The kiosk hides the taskbar (`wf-panel-pi`), starts Epiphany fullscreen, and installs a labwc fullscreen rule. The UI uses the normal themed layout (viewport-locked so meters stay visible).
 
 6. LAN access: use `http://<pi-hostname>.local:3000/admin` (Avahi/mDNS) or the Pi’s IP. The app binds `0.0.0.0:3000` by default.
 

@@ -3,8 +3,6 @@ const lastPourEl = document.getElementById('last-pour');
 
 let tapsState = [];
 let pouringTapIds = new Set();
-const liteMode =
-  new URLSearchParams(location.search).has('lite') || localStorage.getItem('tap_control_lite') === '1';
 
 function mlToLiters(ml) {
   return (Number(ml) || 0) / 1000;
@@ -276,9 +274,7 @@ function handleWsMessage(event) {
   }
 
   if (message.event === 'settings' && message.payload) {
-    if (!liteMode) {
-      applyTheme(message.payload.ui_theme);
-    }
+    applyTheme(message.payload.ui_theme);
   }
 }
 
@@ -294,13 +290,6 @@ function scheduleReconnect() {
 }
 
 async function loadSettingsTheme() {
-  if (liteMode) {
-    document.documentElement.setAttribute('data-theme', 'amber');
-    document.documentElement.classList.add('lite');
-    document.body.classList.add('lite');
-    return;
-  }
-
   try {
     const res = await fetch('/api/settings');
     const data = await res.json();

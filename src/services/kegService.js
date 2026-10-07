@@ -351,7 +351,7 @@ function listPours(limit) {
 
 function listRecentPoursForTap(tapId, limit) {
   const db = getDb();
-  const max = Number(limit) || 10;
+  const max = Number(limit) || 8;
   return db
     .prepare(
       `
@@ -375,7 +375,7 @@ function attachRecentPours(taps) {
   for (const tap of taps) {
     result.push({
       ...tap,
-      recent_pours: listRecentPoursForTap(tap.id, 10),
+      recent_pours: listRecentPoursForTap(tap.id, 8),
     });
   }
   return result;

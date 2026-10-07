@@ -1,7 +1,7 @@
 #!/bin/bash
 # Start a single Epiphany window fullscreen on the keezer UI.
 
-URL="${TAP_CONTROL_KIOSK_URL:-http://localhost:3000/?lite=1}"
+URL="${TAP_CONTROL_KIOSK_URL:-http://localhost:3000/}"
 USER_HOME="${HOME:-/home/antonholst}"
 LOG="${TAP_CONTROL_KIOSK_LOG:-$USER_HOME/tap-control-kiosk.log}"
 LOCK_DIR="${TAP_CONTROL_KIOSK_LOCK_DIR:-$USER_HOME/.cache}"

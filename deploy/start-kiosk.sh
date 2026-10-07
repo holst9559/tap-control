@@ -6,11 +6,9 @@ USER_HOME="${HOME:-/home/antonholst}"
 LOG="${TAP_CONTROL_KIOSK_LOG:-$USER_HOME/tap-control-kiosk.log}"
 LOCK_DIR="${TAP_CONTROL_KIOSK_LOCK_DIR:-$USER_HOME/.cache}"
 LOCK="$LOCK_DIR/tap-control-kiosk.lock"
-# Dedicated profile (not application-mode). Cleared each start → no session restore
-# of leftover windows from earlier failed launches.
 PROFILE="${TAP_CONTROL_KIOSK_PROFILE:-$USER_HOME/.config/epiphany-tap-kiosk}"
 
-mkdir -p "$(dirname "$LOG")" "$LOCK_DIR"
+mkdir -p "$(dirname "$LOG")" "$LOCK_DIR" "$PROFILE"
 exec >>"$LOG" 2>&1
 echo "---- $(date -Iseconds) kiosk start ----"
 
@@ -30,25 +28,31 @@ export XAUTHORITY="${XAUTHORITY:-$USER_HOME/.Xauthority}"
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 export HOME="$USER_HOME"
 
-if [ -z "${WAYLAND_DISPLAY:-}" ]; then
-  if [ -S "$XDG_RUNTIME_DIR/wayland-0" ]; then
-    export WAYLAND_DISPLAY=wayland-0
-  elif [ -S "$XDG_RUNTIME_DIR/wayland-1" ]; then
-    export WAYLAND_DISPLAY=wayland-1
+# Prefer X11 when its socket exists (Pi switched to X11 + unclutter).
+if [ -S /tmp/.X11-unix/X0 ]; then
+  unset WAYLAND_DISPLAY
+  echo "using X11 DISPLAY=$DISPLAY"
+else
+  if [ -z "${WAYLAND_DISPLAY:-}" ]; then
+    if [ -S "$XDG_RUNTIME_DIR/wayland-0" ]; then
+      export WAYLAND_DISPLAY=wayland-0
+    elif [ -S "$XDG_RUNTIME_DIR/wayland-1" ]; then
+      export WAYLAND_DISPLAY=wayland-1
+    fi
   fi
+  echo "DISPLAY=$DISPLAY WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-}"
 fi
-
-echo "DISPLAY=$DISPLAY WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-} URL=$URL"
+echo "URL=$URL"
 
 wait_for_display() {
   local i
   for i in $(seq 1 60); do
-    if [ -n "${WAYLAND_DISPLAY:-}" ] && [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ]; then
-      echo "wayland socket ready"
-      return 0
-    fi
     if [ -S /tmp/.X11-unix/X0 ] || [ -S /tmp/.X11-unix/Xwayland0 ]; then
       echo "X socket ready"
+      return 0
+    fi
+    if [ -n "${WAYLAND_DISPLAY:-}" ] && [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ]; then
+      echo "wayland socket ready"
       return 0
     fi
     sleep 1
@@ -77,45 +81,54 @@ hide_desktop_chrome() {
 }
 
 kill_all_epiphany() {
-  # Kill every Epiphany UI process for this user (not WebKit helpers by name alone).
   pkill -u "$(id -un)" -x epiphany 2>/dev/null || true
   pkill -u "$(id -un)" -x epiphany-browser 2>/dev/null || true
-  pkill -u "$(id -un)" -f '/usr/bin/epiphany ' 2>/dev/null || true
-  pkill -u "$(id -un)" -f '/usr/bin/epiphany$' 2>/dev/null || true
+  pkill -u "$(id -un)" -f '/usr/bin/epiphany' 2>/dev/null || true
   pkill -u "$(id -un)" -f 'epiphany-browser' 2>/dev/null || true
   pkill -u "$(id -un)" -f 'org.gnome.Epiphany' 2>/dev/null || true
   sleep 1
   pkill -9 -u "$(id -un)" -x epiphany 2>/dev/null || true
   pkill -9 -u "$(id -un)" -x epiphany-browser 2>/dev/null || true
-  pkill -9 -u "$(id -un)" -f 'org.gnome.Epiphany' 2>/dev/null || true
   sleep 1
-  local left
-  left=$(pgrep -au "$(id -un)" -f '[e]piphany' 2>/dev/null | wc -l | tr -d ' ')
-  echo "epiphany processes left after kill: ${left:-0}"
+  echo "epiphany processes left: $(pgrep -cu "$(id -un)" -f '[e]piphany' 2>/dev/null || echo 0)"
 }
 
-try_fullscreen() {
+raise_and_fullscreen() {
   local i
-  for i in $(seq 1 12); do
+  for i in $(seq 1 15); do
     sleep 2
     if command -v wmctrl >/dev/null 2>&1; then
-      if wmctrl -x -r epiphany.Epiphany -b add,fullscreen 2>/dev/null \
-        || wmctrl -x -r Epiphany -b add,fullscreen 2>/dev/null \
-        || wmctrl -r :ACTIVE: -b add,fullscreen 2>/dev/null; then
-        echo "fullscreen via wmctrl (attempt $i)"
+      # List matches for debugging
+      wmctrl -lx 2>/dev/null | grep -i ephy >>"$LOG" || true
+      if wmctrl -x -a epiphany.Epiphany 2>/dev/null \
+        || wmctrl -x -a Epiphany 2>/dev/null \
+        || wmctrl -a "Tap Control" 2>/dev/null \
+        || wmctrl -a "Keezer" 2>/dev/null \
+        || wmctrl -a "localhost" 2>/dev/null; then
+        wmctrl -r :ACTIVE: -b add,fullscreen 2>/dev/null || true
+        wmctrl -r :ACTIVE: -b add,maximized_vert,maximized_horz 2>/dev/null || true
+        echo "raised/fullscreen via wmctrl (attempt $i)"
+        return 0
+      fi
+      # Fallback: any window containing epiphany in WM_CLASS
+      local win
+      win=$(wmctrl -lx 2>/dev/null | awk '/[Ee]piphany/ {print $1; exit}')
+      if [ -n "$win" ]; then
+        wmctrl -i -a "$win" 2>/dev/null || true
+        wmctrl -i -r "$win" -b add,fullscreen 2>/dev/null || true
+        echo "fullscreen via wmctrl id=$win (attempt $i)"
+        return 0
+      fi
+    fi
+    if command -v xdotool >/dev/null 2>&1; then
+      if xdotool search --class epiphany windowactivate --sync key F11 2>/dev/null \
+        || xdotool search --name 'localhost' windowactivate --sync key F11 2>/dev/null; then
+        echo "fullscreen via xdotool F11 (attempt $i)"
         return 0
       fi
     fi
   done
-  # Last resort once — F11 toggles
-  if command -v wtype >/dev/null 2>&1; then
-    wtype -k F11 2>/dev/null && echo "fullscreen via wtype F11" && return 0
-  fi
-  if command -v xdotool >/dev/null 2>&1; then
-    xdotool search --class epiphany windowactivate --sync key F11 2>/dev/null \
-      && echo "fullscreen via xdotool F11" && return 0
-  fi
-  echo "could not force fullscreen (labwc rule may still apply)"
+  echo "could not raise/fullscreen epiphany window"
   return 0
 }
 
@@ -128,67 +141,23 @@ if [ ! -x /usr/bin/epiphany ]; then
   exit 1
 fi
 
-# Fresh profile every launch → exactly one window (no restored session stack).
-rm -rf "$PROFILE"
+# Reuse profile (wiping forced a 37-step migrator every boot and delayed the UI).
 mkdir -p "$PROFILE"
 
-# Do NOT use --new-window (attaches to an existing instance and stacks windows).
-# Do NOT use --application-mode (broken on this Epiphany without a full web-app install).
 /usr/bin/epiphany --profile="$PROFILE" "$URL" &
 EPID=$!
 echo "epiphany pid=$EPID profile=$PROFILE url=$URL"
 
-sleep 2
+sleep 3
 if ! kill -0 "$EPID" 2>/dev/null; then
   echo "error: epiphany exited immediately"
   wait "$EPID" || true
   exit 1
 fi
+echo "epiphany still running after 3s"
 
 hide_desktop_chrome
-try_fullscreen &
-
-hide_cursor() {
-  # 1) labwc 0.8.4+: HideCursor keybind (no-op on 0.8.1)
-  if command -v wtype >/dev/null 2>&1; then
-    wtype -M alt -M logo -P h -m logo -m alt 2>/dev/null \
-      && echo "sent labwc HideCursor keybind (A-W-h)" \
-      || true
-  fi
-
-  # 2) Nudge pointer so CSS cursor:none applies (any move is enough).
-  if command -v ydotool >/dev/null 2>&1; then
-    export YDOTOOL_SOCKET="${YDOTOOL_SOCKET:-/tmp/.ydotool_socket}"
-    # Ensure daemon is up (older Pi packages often leave it stopped)
-    if [ ! -S "$YDOTOOL_SOCKET" ] && [ ! -S /tmp/.ydotool_socket ] \
-      && [ ! -S "$HOME/.ydotool_socket" ]; then
-      if systemctl is-active --quiet tap-control-ydotoold.service 2>/dev/null; then
-        true
-      elif command -v ydotoold >/dev/null 2>&1; then
-        ydotoold >/tmp/ydotoold-user.log 2>&1 &
-        sleep 1
-      fi
-    fi
-    # Prefer relative move — works on older ydotool without --absolute
-    if ydotool mousemove 60 60 2>/dev/null \
-      || ydotool mousemove -x 60 -y 60 2>/dev/null \
-      || YDOTOOL_SOCKET=/tmp/.ydotool_socket ydotool mousemove 60 60 2>/dev/null \
-      || ydotool mousemove --absolute 200 200 2>/dev/null; then
-      echo "nudged pointer via ydotool (CSS cursor:none)"
-      return 0
-    fi
-  fi
-
-  echo "warning: ydotool nudge failed (ydotoold running?). Reliable fallback:"
-  echo "  ./deploy/install-x11-unclutter.sh"
-}
-
-(
-  sleep 6
-  hide_cursor
-  sleep 8
-  hide_cursor
-) &
+raise_and_fullscreen &
 
 wait "$EPID"
 echo "epiphany exited: $?"

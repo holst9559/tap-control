@@ -97,10 +97,17 @@ RestartSec=5
 [Install]
 WantedBy=graphical-session.target
 EOF
-systemctl --user daemon-reload
-systemctl --user enable tap-control-kiosk.service
-echo "Enabled --user tap-control-kiosk.service"
-# Allow user services at boot even before SSH (lingering)
+# systemctl --user needs a session bus (often missing over plain SSH)
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+if [ -S "$XDG_RUNTIME_DIR/bus" ]; then
+  export DBUS_SESSION_BUS_ADDRESS="unix:path=$XDG_RUNTIME_DIR/bus"
+  systemctl --user daemon-reload
+  systemctl --user enable tap-control-kiosk.service
+  echo "Enabled --user tap-control-kiosk.service"
+else
+  echo "note: no user bus at $XDG_RUNTIME_DIR/bus — skip systemd --user enable"
+  echo "      (openbox/LXDE/XDG autostart still installed; OK for desktop login)"
+fi
 loginctl enable-linger "$(id -un)" 2>/dev/null || true
 
 echo "== 5) labwc autostart (if you switch back to Wayland) =="

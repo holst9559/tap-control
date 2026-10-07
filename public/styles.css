@@ -221,6 +221,28 @@ body::before {
   font-variant-numeric: tabular-nums;
 }
 
+.meter--empty .meter-bar,
+.meter--empty .meter-stats {
+  display: none;
+}
+
+.meter-empty-msg {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border-radius: 6px;
+  border: 1px dashed color-mix(in srgb, var(--amber) 55%, transparent);
+  background: color-mix(in srgb, var(--amber) 10%, transparent);
+  color: var(--amber);
+  font-size: clamp(1.05rem, 1.7vw, 1.35rem);
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.tap-empty .beer-name {
+  color: var(--muted);
+}
+
 .pouring .beer-name {
   color: var(--amber);
 }

@@ -45,6 +45,39 @@ function percentRemaining(tap) {
   return Math.max(0, Math.min(100, (tap.remaining_ml / tap.capacity_ml) * 100));
 }
 
+/** Shown when the counter hits 0 — there may still be beer in the lines. */
+const EMPTY_KEG_LINES = [
+  'Skynda på innan det tar slut',
+  'Inte många droppar kvar nu',
+  'Meddela närmsta servicetekniker',
+  'Nu vart det slut',
+  '0,00 L… enligt matematiken',
+  'Fatet säger nej. Röret säger kanske.',
+  'Här bor bara skum och hopp',
+  'Sista skälvan — eller så ljuger mätaren',
+  'Någon har räknat fel. Hoppas det är vi.',
+  'Dags att skaka fatet. Försiktigt.',
+  'Tomt på pappret. Kvar i hjärtat.',
+  'Servicetekniker till baren, tack',
+  'Sista dropparna gömmer sig i slangen',
+  'Kranen är torrlagd (ungefär)',
+  'Ring bryggmästaren — vi är på reserv',
+  'Matematiken har gått hem för kvällen',
+];
+
+function emptyKegLine(tap) {
+  const key = `${tap.keg_id || 0}:${tap.id}`;
+  let hash = 0;
+  for (let i = 0; i < key.length; i += 1) {
+    hash = (hash + key.charCodeAt(i) * (i + 1)) % EMPTY_KEG_LINES.length;
+  }
+  return EMPTY_KEG_LINES[hash];
+}
+
+function isKegCounterEmpty(tap) {
+  return Boolean(tap.keg_id) && Number(tap.remaining_ml) <= 0;
+}
+
 function pourHistoryKey(pours) {
   if (!pours || pours.length === 0) {
     return '';
@@ -134,11 +167,16 @@ function createTapCard(tap) {
   const right = document.createElement('span');
   right.className = 'meter-right';
 
+  const emptyMsg = document.createElement('p');
+  emptyMsg.className = 'meter-empty-msg';
+  emptyMsg.hidden = true;
+
   bar.appendChild(fill);
   stats.appendChild(left);
   stats.appendChild(right);
   meter.appendChild(bar);
   meter.appendChild(stats);
+  meter.appendChild(emptyMsg);
 
   card.appendChild(head);
   card.appendChild(history);
@@ -151,9 +189,10 @@ function updateTapCard(card, tap) {
   const pct = percentRemaining(tap);
   const pouring = pouringTapIds.has(tap.id);
   const low = pct <= 15;
+  const empty = isKegCounterEmpty(tap);
   const historyKey = pourHistoryKey(tap.recent_pours);
 
-  card.className = 'tap-card' + (pouring ? ' pouring' : '');
+  card.className = 'tap-card' + (pouring ? ' pouring' : '') + (empty ? ' tap-empty' : '');
   card.querySelector('.tap-label').textContent = tap.name;
   card.querySelector('.beer-name').textContent = tap.keg_name || 'Inget fat';
 
@@ -162,7 +201,24 @@ function updateTapCard(card, tap) {
     card.dataset.historyKey = historyKey;
   }
 
+  const meter = card.querySelector('.meter');
+  const emptyMsg = card.querySelector('.meter-empty-msg');
   const fill = card.querySelector('.meter-fill');
+
+  if (empty) {
+    meter.classList.add('meter--empty');
+    emptyMsg.hidden = false;
+    emptyMsg.textContent = emptyKegLine(tap);
+    fill.style.width = '0%';
+    card.querySelector('.meter-left').textContent = '';
+    card.querySelector('.meter-right').textContent = '';
+    return;
+  }
+
+  meter.classList.remove('meter--empty');
+  emptyMsg.hidden = true;
+  emptyMsg.textContent = '';
+
   fill.className = 'meter-fill' + (low ? ' low' : '');
   fill.style.width = `${pct}%`;
 

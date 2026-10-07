@@ -5,6 +5,9 @@
     <windowRule identifier="org.gnome.Epiphany">
       <action name="ToggleFullscreen"/>
     </windowRule>
+    <windowRule identifier="org.gnome.Epiphany.WebApp_tap-control-kiosk">
+      <action name="ToggleFullscreen"/>
+    </windowRule>
     <windowRule identifier="epiphany">
       <action name="ToggleFullscreen"/>
     </windowRule>

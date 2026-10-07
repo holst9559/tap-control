@@ -1,20 +1,22 @@
 #!/bin/bash
 # Start Epiphany fullscreen on the keezer UI (meant for desktop autostart).
 
-# ?lite=1 = cheaper CSS/JS path for Pi Zero-class devices
 URL="${TAP_CONTROL_KIOSK_URL:-http://localhost:3000/?lite=1}"
 USER_HOME="${HOME:-/home/antonholst}"
 LOG="${TAP_CONTROL_KIOSK_LOG:-$USER_HOME/tap-control-kiosk.log}"
-# Must match Epiphany's web-app id (underscore, not hyphen).
-APP_ID="${TAP_CONTROL_KIOSK_APP_ID:-org.gnome.Epiphany.WebApp_tap-control-kiosk}"
-PROFILE="${TAP_CONTROL_KIOSK_PROFILE:-$USER_HOME/.local/share/$APP_ID}"
-PORTAL_DESKTOP_DIR="$USER_HOME/.local/share/xdg-desktop-portal/applications"
-APPS_DESKTOP_DIR="$USER_HOME/.local/share/applications"
-PORTAL_DESKTOP="$PORTAL_DESKTOP_DIR/$APP_ID.desktop"
-APPS_DESKTOP="$APPS_DESKTOP_DIR/$APP_ID.desktop"
+LOCK_DIR="${TAP_CONTROL_KIOSK_LOCK_DIR:-$USER_HOME/.cache}"
+LOCK="$LOCK_DIR/tap-control-kiosk.lock"
 
+mkdir -p "$(dirname "$LOG")" "$LOCK_DIR"
 exec >>"$LOG" 2>&1
 echo "---- $(date -Iseconds) kiosk start ----"
+
+# One launcher only (XDG + labwc otherwise stack browsers)
+exec 9>"$LOCK"
+if ! flock -n 9; then
+  echo "another start-kiosk.sh already holds $LOCK — exiting"
+  exit 0
+fi
 
 export DISPLAY="${DISPLAY:-:0}"
 export XAUTHORITY="${XAUTHORITY:-$USER_HOME/.Xauthority}"
@@ -29,7 +31,7 @@ if [ -z "${WAYLAND_DISPLAY:-}" ]; then
   fi
 fi
 
-echo "DISPLAY=$DISPLAY WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-} XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR"
+echo "DISPLAY=$DISPLAY WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-} XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR URL=$URL"
 
 wait_for_display() {
   local i
@@ -67,15 +69,43 @@ hide_desktop_chrome() {
   echo "hid panel chrome (best-effort)"
 }
 
-try_fullscreen() {
-  sleep 4
-  if command -v wmctrl >/dev/null 2>&1; then
-    if wmctrl -x -r epiphany.Epiphany -b add,fullscreen 2>/dev/null \
-      || wmctrl -r :ACTIVE: -b add,fullscreen 2>/dev/null; then
-      echo "fullscreen via wmctrl"
-      return 0
+kill_epiphany() {
+  pkill -u "$(id -un)" -x epiphany 2>/dev/null || true
+  pkill -u "$(id -un)" -x epiphany-browser 2>/dev/null || true
+  pkill -u "$(id -un)" -f '/usr/bin/epiphany' 2>/dev/null || true
+  pkill -u "$(id -un)" -f 'epiphany-browser' 2>/dev/null || true
+  pkill -u "$(id -un)" -f 'org.gnome.Epiphany.WebApp_' 2>/dev/null || true
+  sleep 1
+  pkill -9 -u "$(id -un)" -x epiphany 2>/dev/null || true
+  pkill -9 -u "$(id -un)" -x epiphany-browser 2>/dev/null || true
+}
+
+kill_stray_epiphany() {
+  local pid
+  for pid in $(pgrep -u "$(id -un)" -x epiphany 2>/dev/null) \
+             $(pgrep -u "$(id -un)" -x epiphany-browser 2>/dev/null); do
+    if [ -n "${EPID:-}" ] && [ "$pid" = "$EPID" ]; then
+      continue
     fi
-  fi
+    echo "killing stray epiphany pid=$pid"
+    kill -9 "$pid" 2>/dev/null || true
+  done
+}
+
+try_fullscreen() {
+  local i
+  # Retry: window may map late; F11 is toggle so only use if wmctrl fails.
+  for i in $(seq 1 10); do
+    sleep 2
+    if command -v wmctrl >/dev/null 2>&1; then
+      if wmctrl -x -r epiphany.Epiphany -b add,fullscreen 2>/dev/null \
+        || wmctrl -x -r Epiphany -b add,fullscreen 2>/dev/null \
+        || wmctrl -r :ACTIVE: -b add,fullscreen 2>/dev/null; then
+        echo "fullscreen via wmctrl (attempt $i)"
+        return 0
+      fi
+    fi
+  done
   if command -v wtype >/dev/null 2>&1; then
     wtype -k F11 2>/dev/null && echo "fullscreen via wtype F11" && return 0
   fi
@@ -87,76 +117,34 @@ try_fullscreen() {
   return 0
 }
 
-# Newer Epiphany looks up this desktop file via xdg-desktop-portal.
-ensure_webapp_desktop() {
-  mkdir -p "$PORTAL_DESKTOP_DIR" "$APPS_DESKTOP_DIR" "$PROFILE"
-  # Marker file Epiphany expects inside web-app profiles
-  : >"$PROFILE/.app"
-
-  local desktop
-  desktop=$(
-    cat <<EOF
-[Desktop Entry]
-Version=1.0
-Type=Application
-Name=Tap Control
-Comment=Keezer kiosk
-Exec=epiphany --application-mode --profile=$PROFILE $URL
-Icon=web-browser
-Terminal=false
-Categories=GNOME;GTK;Network;
-StartupNotify=true
-StartupWMClass=$APP_ID
-NoDisplay=true
-EOF
-  )
-  printf '%s\n' "$desktop" >"$PORTAL_DESKTOP"
-  printf '%s\n' "$desktop" >"$APPS_DESKTOP"
-  echo "wrote web-app desktop: $PORTAL_DESKTOP"
-}
-
-launch_epiphany() {
-  /usr/bin/epiphany --application-mode --profile="$PROFILE" "$URL" &
-  EPID=$!
-  echo "epiphany application-mode pid=$EPID profile=$PROFILE"
-  sleep 3
-  if kill -0 "$EPID" 2>/dev/null; then
-    return 0
-  fi
-  wait "$EPID" || true
-  echo "application-mode failed (exit $?) — falling back to --new-window"
-  /usr/bin/epiphany --new-window "$URL" &
-  EPID=$!
-  echo "epiphany new-window pid=$EPID"
-  sleep 2
-  kill -0 "$EPID" 2>/dev/null
-}
-
 wait_for_display || true
 wait_for_app || true
-
-pkill -u "$(id -un)" -x epiphany 2>/dev/null || true
-pkill -u "$(id -un)" -x epiphany-browser 2>/dev/null || true
-pkill -u "$(id -un)" -f '/usr/bin/epiphany' 2>/dev/null || true
-# Also kill by web-app id process name if present
-pkill -u "$(id -un)" -f "$APP_ID" 2>/dev/null || true
-sleep 1
+sleep 2
+kill_epiphany
 
 if [ ! -x /usr/bin/epiphany ]; then
   echo "error: /usr/bin/epiphany not found — install epiphany-browser"
   exit 1
 fi
 
-# Broken half-created web apps make Epiphany abort — recreate cleanly each boot.
-rm -rf "$PROFILE"
-ensure_webapp_desktop
+# Plain window + fullscreen. Avoid --application-mode on this Epiphany build
+# (broken without a full portal web-app install; caused dual windows / crashes).
+/usr/bin/epiphany --new-window "$URL" &
+EPID=$!
+echo "epiphany pid=$EPID url=$URL"
 
-if ! launch_epiphany; then
-  echo "error: could not start epiphany"
-  exit 1
+sleep 2
+if kill -0 "$EPID" 2>/dev/null; then
+  hide_desktop_chrome
 fi
 
-hide_desktop_chrome
+(
+  for delay in 5 12 20; do
+    sleep "$delay"
+    kill_stray_epiphany
+  done
+) &
+
 try_fullscreen &
 
 wait "$EPID"

@@ -1,5 +1,10 @@
 #!/bin/bash
-# Install desktop autostart for the Epiphany kiosk (more reliable than system systemd on Pi OS).
+# Install kiosk autostart for Raspberry Pi OS (labwc --merge-config).
+#
+# - User ~/.config/labwc/autostart must contain ONLY the kiosk line
+#   (never a copy of /etc/xdg/labwc/autostart — that doubles the toolbar).
+# - Do NOT also install XDG ~/.config/autostart for the same script
+#   (that doubles the browser). start-kiosk.sh also uses flock as a belt.
 
 set -e
 
@@ -7,23 +12,48 @@ REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 USER_HOME="${HOME:-/home/antonholst}"
 AUTOSTART_DIR="$USER_HOME/.config/autostart"
 LABWC_DIR="$USER_HOME/.config/labwc"
+LABWC_AUTOSTART="$LABWC_DIR/autostart"
 RC_XML="$LABWC_DIR/rc.xml"
 MARKER_BEGIN="<!-- tap-control-kiosk-begin -->"
 MARKER_END="<!-- tap-control-kiosk-end -->"
+START_KIOSK="$REPO_DIR/deploy/start-kiosk.sh"
 
-chmod +x "$REPO_DIR/deploy/start-kiosk.sh"
-mkdir -p "$AUTOSTART_DIR"
-cp "$REPO_DIR/deploy/tap-control-kiosk.desktop" "$AUTOSTART_DIR/"
-echo "Installed $AUTOSTART_DIR/tap-control-kiosk.desktop"
+chmod +x "$START_KIOSK" "$REPO_DIR/deploy/install-kiosk-autostart.sh"
+mkdir -p "$AUTOSTART_DIR" "$LABWC_DIR"
 
-install_labwc_fullscreen_rule() {
-  mkdir -p "$LABWC_DIR"
-  local rules
-  rules=$(
-    cat <<EOF
+echo "== Disable systemd kiosk =="
+if systemctl list-unit-files tap-control-kiosk.service >/dev/null 2>&1; then
+  sudo systemctl disable --now tap-control-kiosk.service 2>/dev/null || true
+  echo "Disabled tap-control-kiosk.service"
+fi
+
+echo "== Remove XDG kiosk desktop (labwc-only launcher) =="
+rm -f "$AUTOSTART_DIR"/tap-control*.desktop
+echo "Removed $AUTOSTART_DIR/tap-control*.desktop (if any)"
+
+echo "== labwc autostart: kiosk line only =="
+if [ -f "$LABWC_AUTOSTART" ]; then
+  bak="$LABWC_AUTOSTART.bak.$(date +%Y%m%d%H%M%S)"
+  cp "$LABWC_AUTOSTART" "$bak"
+  echo "Backed up → $bak"
+fi
+cat >"$LABWC_AUTOSTART" <<EOF
+#!/bin/sh
+# tap-control extras only — panel/session stay in /etc/xdg/labwc/autostart
+$START_KIOSK &
+EOF
+chmod +x "$LABWC_AUTOSTART"
+echo "Wrote $LABWC_AUTOSTART"
+
+echo "== labwc fullscreen window rules =="
+RULES=$(
+  cat <<EOF
   $MARKER_BEGIN
   <windowRules>
     <windowRule identifier="org.gnome.Epiphany">
+      <action name="ToggleFullscreen"/>
+    </windowRule>
+    <windowRule identifier="org.gnome.Epiphany.WebApp_tap-control-kiosk">
       <action name="ToggleFullscreen"/>
     </windowRule>
     <windowRule identifier="epiphany">
@@ -32,71 +62,46 @@ install_labwc_fullscreen_rule() {
   </windowRules>
   $MARKER_END
 EOF
-  )
+)
 
-  if [ -f "$RC_XML" ] && grep -qF "$MARKER_BEGIN" "$RC_XML" 2>/dev/null; then
-    echo "labwc fullscreen rule already installed in $RC_XML"
-    return 0
-  fi
+# Replace previous marked block if present
+if [ -f "$RC_XML" ] && grep -qF "$MARKER_BEGIN" "$RC_XML" 2>/dev/null; then
+  tmp="$(mktemp)"
+  awk -v begin="$MARKER_BEGIN" -v end="$MARKER_END" '
+    $0 ~ begin { skip=1; next }
+    $0 ~ end { skip=0; next }
+    !skip { print }
+  ' "$RC_XML" >"$tmp"
+  mv "$tmp" "$RC_XML"
+  echo "Removed old marked fullscreen block from $RC_XML"
+fi
 
-  if [ ! -f "$RC_XML" ]; then
-    cat >"$RC_XML" <<EOF
+if [ ! -f "$RC_XML" ]; then
+  cat >"$RC_XML" <<EOF
 <?xml version="1.0"?>
 <labwc_config>
-$rules
+$RULES
 </labwc_config>
 EOF
-    echo "Created $RC_XML with Epiphany fullscreen rule"
-    return 0
-  fi
-
-  if grep -q '</labwc_config>' "$RC_XML"; then
-    # Insert before closing root tag
-    local tmp
-    tmp="$(mktemp)"
-    awk -v rules="$rules" '
-      /<\/labwc_config>/ && !done {
-        print rules
-        done=1
-      }
-      { print }
-    ' "$RC_XML" >"$tmp"
-    mv "$tmp" "$RC_XML"
-    echo "Merged Epiphany fullscreen rule into $RC_XML"
-  else
-    echo "warning: $RC_XML has unexpected format — add ToggleFullscreen windowRule manually"
-  fi
-}
-
-# labwc (Bookworm/Trixie default compositor on Pi OS)
-if [ -d "$LABWC_DIR" ] || command -v labwc >/dev/null 2>&1 || [ -d /etc/xdg/labwc ]; then
-  install_labwc_fullscreen_rule
-
-  AUTOSTART_FILE="$LABWC_DIR/autostart"
-  mkdir -p "$LABWC_DIR"
-  LINE="$REPO_DIR/deploy/start-kiosk.sh &"
-  if [ ! -f "$AUTOSTART_FILE" ] || ! grep -qF "start-kiosk.sh" "$AUTOSTART_FILE" 2>/dev/null; then
-    echo "$LINE" >>"$AUTOSTART_FILE"
-    chmod +x "$AUTOSTART_FILE" 2>/dev/null || true
-    echo "Appended kiosk line to $AUTOSTART_FILE"
-  else
-    echo "labwc autostart already references start-kiosk.sh"
-  fi
-fi
-
-# Disable system kiosk unit if present — it often races the desktop session
-if systemctl list-unit-files tap-control-kiosk.service >/dev/null 2>&1; then
-  sudo systemctl disable --now tap-control-kiosk.service 2>/dev/null || true
-  echo "Disabled system tap-control-kiosk.service (autostart replaces it)"
+  echo "Created $RC_XML"
+else
+  tmp="$(mktemp)"
+  awk -v rules="$RULES" '
+    /<\/labwc_config>/ && !done {
+      print rules
+      done=1
+    }
+    { print }
+  ' "$RC_XML" >"$tmp"
+  mv "$tmp" "$RC_XML"
+  echo "Merged fullscreen rules into $RC_XML"
 fi
 
 echo
-echo "Done. Ensure desktop auto-login is on:"
-echo "  sudo raspi-config  →  System Options  →  Boot / Auto Login  →  Desktop"
+echo "Verify:"
+echo "  cat ~/.config/labwc/autostart          # only start-kiosk.sh"
+echo "  ls ~/.config/autostart/tap-control* 2>/dev/null || echo '(no xdg kiosk desktop)'"
 echo
-echo "Optional (helps F11 on Wayland): sudo apt install -y wtype"
-echo
-echo "Test now with:"
-echo "  $REPO_DIR/deploy/start-kiosk.sh"
-echo "Log file: $USER_HOME/tap-control-kiosk.log"
+echo "Test: $START_KIOSK"
+echo "Log:  $USER_HOME/tap-control-kiosk.log"
 echo "Then reboot."

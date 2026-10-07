@@ -47,22 +47,12 @@ function percentRemaining(tap) {
 
 /** Shown when the counter hits 0 — there may still be beer in the lines. */
 const EMPTY_KEG_LINES = [
-  'Skynda på innan det tar slut',
   'Inte många droppar kvar nu',
   'Meddela närmsta servicetekniker',
   'Nu vart det slut',
-  '0,00 L… enligt matematiken',
   'Fatet säger nej. Röret säger kanske.',
-  'Här bor bara skum och hopp',
-  'Sista skälvan — eller så ljuger mätaren',
-  'Någon har räknat fel. Hoppas det är vi.',
-  'Dags att skaka fatet. Försiktigt.',
-  'Tomt på pappret. Kvar i hjärtat.',
   'Servicetekniker till baren, tack',
-  'Sista dropparna gömmer sig i slangen',
-  'Kranen är torrlagd (ungefär)',
   'Ring bryggmästaren — vi är på reserv',
-  'Matematiken har gått hem för kvällen',
 ];
 
 function emptyKegLine(tap) {
@@ -209,9 +199,10 @@ function updateTapCard(card, tap) {
     meter.classList.add('meter--empty');
     emptyMsg.hidden = false;
     emptyMsg.textContent = emptyKegLine(tap);
-    fill.style.width = '0%';
-    card.querySelector('.meter-left').textContent = '';
-    card.querySelector('.meter-right').textContent = '';
+    fill.className = 'meter-fill meter-fill--empty';
+    fill.style.width = '100%';
+    card.querySelector('.meter-left').textContent = 'Tomt';
+    card.querySelector('.meter-right').textContent = '0%';
     return;
   }
 

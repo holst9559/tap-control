@@ -16,7 +16,6 @@ const assignMode = document.getElementById('assign-mode');
 const existingKegWrap = document.getElementById('existing-keg-wrap');
 const assignExisting = document.getElementById('assign-existing');
 const assignName = document.getElementById('assign-name');
-const assignBrewery = document.getElementById('assign-brewery');
 const assignCapacity = document.getElementById('assign-capacity');
 const assignRemaining = document.getElementById('assign-remaining');
 const assignPreviousStatus = document.getElementById('assign-previous-status');
@@ -25,7 +24,6 @@ const assignMsg = document.getElementById('assign-msg');
 const editKegForm = document.getElementById('edit-keg-form');
 const editKegId = document.getElementById('edit-keg-id');
 const editName = document.getElementById('edit-name');
-const editBrewery = document.getElementById('edit-brewery');
 const editCapacity = document.getElementById('edit-capacity');
 const editRemaining = document.getElementById('edit-remaining');
 const editStatus = document.getElementById('edit-status');
@@ -296,7 +294,6 @@ function syncEditKegForm() {
   }
 
   editName.value = keg.name;
-  editBrewery.value = keg.brewery || '';
   editCapacity.value = Math.round(keg.capacity_ml);
   editRemaining.value = Math.round(keg.remaining_ml);
   editStatus.value = keg.status;
@@ -307,7 +304,6 @@ function syncAssignMode() {
   const existing = assignMode.value === 'existing';
   existingKegWrap.hidden = !existing;
   assignName.disabled = existing;
-  assignBrewery.disabled = existing;
   assignCapacity.disabled = existing;
   assignRemaining.disabled = existing;
 }
@@ -378,7 +374,6 @@ async function onAssignSubmit(event) {
       body = {
         create: true,
         name: assignName.value,
-        brewery: assignBrewery.value,
         capacity_ml: Number(assignCapacity.value),
         remaining_ml: Number(assignRemaining.value),
         previous_status: assignPreviousStatus.value,
@@ -405,7 +400,6 @@ async function onEditKegSubmit(event) {
       method: 'PATCH',
       body: JSON.stringify({
         name: editName.value,
-        brewery: editBrewery.value,
         capacity_ml: Number(editCapacity.value),
         remaining_ml: Number(editRemaining.value),
         status: editStatus.value,

@@ -32,7 +32,6 @@ body::before {
   padding: 2.5rem 3rem;
   display: flex;
   flex-direction: column;
-  gap: 2rem;
   overflow: hidden;
 }
 
@@ -80,28 +79,38 @@ body::before {
   overflow: hidden;
 }
 
+/* Fixed-height header so pour history starts on the same row across all taps. */
+.tap-head {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
 .tap-label {
+  height: 1.35em;
   font-size: 0.95rem;
+  line-height: 1.35;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--muted);
-  flex-shrink: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .beer-name {
   margin: 0;
+  /* Reserve exactly two lines for every tap */
+  height: calc(1.15em * 2);
   font-size: clamp(1.8rem, 3.4vw, 2.7rem);
   font-weight: 600;
   line-height: 1.15;
-  flex-shrink: 0;
-}
-
-.brewery {
-  margin: 0;
-  color: var(--muted);
-  font-size: 1.15rem;
-  min-height: 1.35rem;
-  flex-shrink: 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 .pour-history {

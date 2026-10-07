@@ -91,14 +91,17 @@ function createTapCard(tap) {
   card.dataset.tapId = String(tap.id);
   card.dataset.historyKey = '';
 
+  const head = document.createElement('div');
+  head.className = 'tap-head';
+
   const label = document.createElement('div');
   label.className = 'tap-label';
 
   const beer = document.createElement('h2');
   beer.className = 'beer-name';
 
-  const brewery = document.createElement('p');
-  brewery.className = 'brewery';
+  head.appendChild(label);
+  head.appendChild(beer);
 
   const history = document.createElement('div');
   history.className = 'pour-history';
@@ -137,9 +140,7 @@ function createTapCard(tap) {
   meter.appendChild(bar);
   meter.appendChild(stats);
 
-  card.appendChild(label);
-  card.appendChild(beer);
-  card.appendChild(brewery);
+  card.appendChild(head);
   card.appendChild(history);
   card.appendChild(meter);
 
@@ -155,7 +156,6 @@ function updateTapCard(card, tap) {
   card.className = 'tap-card' + (pouring ? ' pouring' : '');
   card.querySelector('.tap-label').textContent = tap.name;
   card.querySelector('.beer-name').textContent = tap.keg_name || 'Inget fat';
-  card.querySelector('.brewery').textContent = tap.keg_brewery || '';
 
   if (card.dataset.historyKey !== historyKey) {
     fillPourHistoryList(card.querySelector('.pour-history-list'), tap.recent_pours || []);

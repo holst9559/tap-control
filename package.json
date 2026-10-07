@@ -8,7 +8,8 @@
     "dev": "TAP_CONTROL_MOCK=1 node src/index.js",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "calibrate": "node scripts/calibrate.js"
+    "calibrate": "node scripts/calibrate.js",
+    "seed:demo": "node scripts/seed-demo-pours.js"
   },
   "engines": {
     "node": ">=18"

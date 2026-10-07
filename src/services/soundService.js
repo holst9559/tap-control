@@ -87,6 +87,25 @@ function tryPlay(players, index, filePath) {
   child.unref();
 }
 
+function playersFor(filePath) {
+  const lower = filePath.toLowerCase();
+  // aplay is much faster to start on Pi Zero than ffplay — prefer it for WAV.
+  if (lower.endsWith('.wav')) {
+    return [
+      { cmd: 'aplay', args: ['-q', filePath] },
+      { cmd: 'paplay', args: [filePath] },
+      { cmd: 'ffplay', args: ['-nodisp', '-autoexit', '-loglevel', 'quiet', filePath] },
+    ];
+  }
+
+  return [
+    { cmd: 'mpg123', args: ['-q', filePath] },
+    { cmd: 'paplay', args: [filePath] },
+    { cmd: 'ffplay', args: ['-nodisp', '-autoexit', '-loglevel', 'quiet', filePath] },
+    { cmd: 'aplay', args: ['-q', filePath] },
+  ];
+}
+
 function playFile(filePath) {
   if (!filePath) {
     console.warn('[sound] no sound file to play');
@@ -98,14 +117,7 @@ function playFile(filePath) {
     return;
   }
 
-  const players = [
-    { cmd: 'ffplay', args: ['-nodisp', '-autoexit', '-loglevel', 'quiet', filePath] },
-    { cmd: 'aplay', args: [filePath] },
-    { cmd: 'paplay', args: [filePath] },
-    { cmd: 'mpg123', args: ['-q', filePath] },
-  ];
-
-  tryPlay(players, 0, filePath);
+  tryPlay(playersFor(filePath), 0, filePath);
 }
 
 function playPourSound(tapId) {

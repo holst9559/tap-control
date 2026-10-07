@@ -140,33 +140,55 @@ window_listed() {
   wmctrl -lx 2>/dev/null | grep -Ei 'epiphany|chrom|www-browser' >/dev/null
 }
 
+hide_desktop_chrome() {
+  # Same as before: panel must die or fullscreen leaves a strip of taskbar.
+  pkill -u "$(id -un)" -x wf-panel-pi 2>/dev/null || true
+  pkill -u "$(id -un)" -x lxpanel 2>/dev/null || true
+  pkill -u "$(id -un)" -x lxpanelx 2>/dev/null || true
+  echo "hid panel chrome (best-effort)"
+}
+
 raise_and_fullscreen() {
-  local i win
-  for i in $(seq 1 20); do
+  local i win done_log=0
+  # Keep re-applying; openbox/lxpanel often steal space after the first F11.
+  for i in $(seq 1 60); do
+    hide_desktop_chrome
     sleep 2
     if command -v wmctrl >/dev/null 2>&1; then
-      echo "wmctrl -lx:" >>"$LOG"
-      wmctrl -lx 2>/dev/null >>"$LOG" || true
+      if [ "$done_log" -eq 0 ]; then
+        echo "wmctrl -lx:" >>"$LOG"
+        wmctrl -lx 2>/dev/null >>"$LOG" || true
+        done_log=1
+      fi
       win=$(wmctrl -lx 2>/dev/null | awk 'BEGIN{IGNORECASE=1} /epiphany|chrom|www-browser/ {print $1; exit}')
       if [ -n "$win" ]; then
         wmctrl -i -a "$win" 2>/dev/null || true
         wmctrl -i -r "$win" -b add,fullscreen 2>/dev/null || true
+        wmctrl -i -r "$win" -b add,above 2>/dev/null || true
         wmctrl -i -r "$win" -b add,maximized_vert,maximized_horz 2>/dev/null || true
-        echo "fullscreen via wmctrl id=$win (attempt $i)"
-        return 0
+        # Cover full screen geometry if WM ignores fullscreen hint.
+        if command -v xdotool >/dev/null 2>&1; then
+          local sw sh
+          sw=$(xdotool getdisplaygeometry 2>/dev/null | awk '{print $1}')
+          sh=$(xdotool getdisplaygeometry 2>/dev/null | awk '{print $2}')
+          if [ -n "$sw" ] && [ -n "$sh" ]; then
+            wmctrl -i -r "$win" -e "0,0,0,$sw,$sh" 2>/dev/null || true
+          fi
+        fi
+        if [ "$i" -le 3 ] || [ $((i % 10)) -eq 0 ]; then
+          echo "fullscreen via wmctrl id=$win (attempt $i)"
+        fi
+        continue
       fi
     fi
     if command -v xdotool >/dev/null 2>&1; then
-      if xdotool search --class epiphany windowactivate --sync key F11 2>/dev/null \
+      xdotool search --class epiphany windowactivate --sync key F11 2>/dev/null \
         || xdotool search --name 'localhost' windowactivate --sync key F11 2>/dev/null \
-        || xdotool search --name 'Tap Control' windowactivate --sync key F11 2>/dev/null; then
-        echo "fullscreen via xdotool F11 (attempt $i)"
-        return 0
-      fi
+        || xdotool search --name 'Tap Control' windowactivate --sync key F11 2>/dev/null \
+        || true
     fi
   done
-  echo "could not raise/fullscreen browser window"
-  return 1
+  echo "fullscreen keep-alive finished"
 }
 
 start_epiphany() {
@@ -250,6 +272,7 @@ if [ "$USE_X11" = 1 ]; then
   fi
 fi
 
+hide_desktop_chrome
 raise_and_fullscreen &
 
 wait "$BPID"

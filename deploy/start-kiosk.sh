@@ -1,17 +1,24 @@
 #!/bin/bash
-# Start Epiphany fullscreen on the keezer UI (meant for desktop autostart).
+# Start a single Epiphany window fullscreen on the keezer UI.
 
 URL="${TAP_CONTROL_KIOSK_URL:-http://localhost:3000/?lite=1}"
 USER_HOME="${HOME:-/home/antonholst}"
 LOG="${TAP_CONTROL_KIOSK_LOG:-$USER_HOME/tap-control-kiosk.log}"
 LOCK_DIR="${TAP_CONTROL_KIOSK_LOCK_DIR:-$USER_HOME/.cache}"
 LOCK="$LOCK_DIR/tap-control-kiosk.lock"
+# Dedicated profile (not application-mode). Cleared each start → no session restore
+# of leftover windows from earlier failed launches.
+PROFILE="${TAP_CONTROL_KIOSK_PROFILE:-$USER_HOME/.config/epiphany-tap-kiosk}"
 
 mkdir -p "$(dirname "$LOG")" "$LOCK_DIR"
 exec >>"$LOG" 2>&1
 echo "---- $(date -Iseconds) kiosk start ----"
 
-# One launcher only (XDG + labwc otherwise stack browsers)
+if ! command -v flock >/dev/null 2>&1; then
+  echo "error: flock not found (apt install util-linux)"
+  exit 1
+fi
+
 exec 9>"$LOCK"
 if ! flock -n 9; then
   echo "another start-kiosk.sh already holds $LOCK — exiting"
@@ -31,7 +38,7 @@ if [ -z "${WAYLAND_DISPLAY:-}" ]; then
   fi
 fi
 
-echo "DISPLAY=$DISPLAY WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-} XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR URL=$URL"
+echo "DISPLAY=$DISPLAY WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-} URL=$URL"
 
 wait_for_display() {
   local i
@@ -69,33 +76,27 @@ hide_desktop_chrome() {
   echo "hid panel chrome (best-effort)"
 }
 
-kill_epiphany() {
+kill_all_epiphany() {
+  # Kill every Epiphany UI process for this user (not WebKit helpers by name alone).
   pkill -u "$(id -un)" -x epiphany 2>/dev/null || true
   pkill -u "$(id -un)" -x epiphany-browser 2>/dev/null || true
-  pkill -u "$(id -un)" -f '/usr/bin/epiphany' 2>/dev/null || true
+  pkill -u "$(id -un)" -f '/usr/bin/epiphany ' 2>/dev/null || true
+  pkill -u "$(id -un)" -f '/usr/bin/epiphany$' 2>/dev/null || true
   pkill -u "$(id -un)" -f 'epiphany-browser' 2>/dev/null || true
-  pkill -u "$(id -un)" -f 'org.gnome.Epiphany.WebApp_' 2>/dev/null || true
+  pkill -u "$(id -un)" -f 'org.gnome.Epiphany' 2>/dev/null || true
   sleep 1
   pkill -9 -u "$(id -un)" -x epiphany 2>/dev/null || true
   pkill -9 -u "$(id -un)" -x epiphany-browser 2>/dev/null || true
-}
-
-kill_stray_epiphany() {
-  local pid
-  for pid in $(pgrep -u "$(id -un)" -x epiphany 2>/dev/null) \
-             $(pgrep -u "$(id -un)" -x epiphany-browser 2>/dev/null); do
-    if [ -n "${EPID:-}" ] && [ "$pid" = "$EPID" ]; then
-      continue
-    fi
-    echo "killing stray epiphany pid=$pid"
-    kill -9 "$pid" 2>/dev/null || true
-  done
+  pkill -9 -u "$(id -un)" -f 'org.gnome.Epiphany' 2>/dev/null || true
+  sleep 1
+  local left
+  left=$(pgrep -au "$(id -un)" -f '[e]piphany' 2>/dev/null | wc -l | tr -d ' ')
+  echo "epiphany processes left after kill: ${left:-0}"
 }
 
 try_fullscreen() {
   local i
-  # Retry: window may map late; F11 is toggle so only use if wmctrl fails.
-  for i in $(seq 1 10); do
+  for i in $(seq 1 12); do
     sleep 2
     if command -v wmctrl >/dev/null 2>&1; then
       if wmctrl -x -r epiphany.Epiphany -b add,fullscreen 2>/dev/null \
@@ -106,6 +107,7 @@ try_fullscreen() {
       fi
     fi
   done
+  # Last resort once — F11 toggles
   if command -v wtype >/dev/null 2>&1; then
     wtype -k F11 2>/dev/null && echo "fullscreen via wtype F11" && return 0
   fi
@@ -113,38 +115,37 @@ try_fullscreen() {
     xdotool search --class epiphany windowactivate --sync key F11 2>/dev/null \
       && echo "fullscreen via xdotool F11" && return 0
   fi
-  echo "could not force fullscreen via tools (labwc window rule may still apply)"
+  echo "could not force fullscreen (labwc rule may still apply)"
   return 0
 }
 
 wait_for_display || true
 wait_for_app || true
-sleep 2
-kill_epiphany
+kill_all_epiphany
 
 if [ ! -x /usr/bin/epiphany ]; then
   echo "error: /usr/bin/epiphany not found — install epiphany-browser"
   exit 1
 fi
 
-# Plain window + fullscreen. Avoid --application-mode on this Epiphany build
-# (broken without a full portal web-app install; caused dual windows / crashes).
-/usr/bin/epiphany --new-window "$URL" &
+# Fresh profile every launch → exactly one window (no restored session stack).
+rm -rf "$PROFILE"
+mkdir -p "$PROFILE"
+
+# Do NOT use --new-window (attaches to an existing instance and stacks windows).
+# Do NOT use --application-mode (broken on this Epiphany without a full web-app install).
+/usr/bin/epiphany --profile="$PROFILE" "$URL" &
 EPID=$!
-echo "epiphany pid=$EPID url=$URL"
+echo "epiphany pid=$EPID profile=$PROFILE url=$URL"
 
 sleep 2
-if kill -0 "$EPID" 2>/dev/null; then
-  hide_desktop_chrome
+if ! kill -0 "$EPID" 2>/dev/null; then
+  echo "error: epiphany exited immediately"
+  wait "$EPID" || true
+  exit 1
 fi
 
-(
-  for delay in 5 12 20; do
-    sleep "$delay"
-    kill_stray_epiphany
-  done
-) &
-
+hide_desktop_chrome
 try_fullscreen &
 
 wait "$EPID"

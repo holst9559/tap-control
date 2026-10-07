@@ -1,10 +1,9 @@
 #!/bin/bash
 # Install kiosk autostart for Raspberry Pi OS (labwc --merge-config).
 #
-# - User ~/.config/labwc/autostart must contain ONLY the kiosk line
+# - User ~/.config/labwc/autostart must contain ONLY tap-control lines
 #   (never a copy of /etc/xdg/labwc/autostart — that doubles the toolbar).
-# - Do NOT also install XDG ~/.config/autostart for the same script
-#   (that doubles the browser). start-kiosk.sh also uses flock as a belt.
+# - Cursor hide uses labwc HideCursor (0.8.4+) via a keybind + wtype.
 
 set -e
 
@@ -13,28 +12,13 @@ USER_HOME="${HOME:-/home/antonholst}"
 AUTOSTART_DIR="$USER_HOME/.config/autostart"
 LABWC_DIR="$USER_HOME/.config/labwc"
 LABWC_AUTOSTART="$LABWC_DIR/autostart"
-LABWC_ENV="$LABWC_DIR/environment"
 RC_XML="$LABWC_DIR/rc.xml"
 MARKER_BEGIN="<!-- tap-control-kiosk-begin -->"
 MARKER_END="<!-- tap-control-kiosk-end -->"
 START_KIOSK="$REPO_DIR/deploy/start-kiosk.sh"
-BLANK_CURSOR_PY="$REPO_DIR/deploy/install-blank-cursor.py"
 
 chmod +x "$START_KIOSK" "$REPO_DIR/deploy/install-kiosk-autostart.sh"
 mkdir -p "$AUTOSTART_DIR" "$LABWC_DIR"
-
-echo "== Invisible cursor theme (hides pointer from boot, not only after mouse move) =="
-python3 "$BLANK_CURSOR_PY"
-# labwc reads environment at session start
-if [ -f "$LABWC_ENV" ]; then
-  grep -vE '^(XCURSOR_THEME|XCURSOR_SIZE)=' "$LABWC_ENV" >"$LABWC_ENV.tmp" || true
-  mv "$LABWC_ENV.tmp" "$LABWC_ENV"
-fi
-{
-  echo "XCURSOR_THEME=tap-control-blank"
-  echo "XCURSOR_SIZE=24"
-} >>"$LABWC_ENV"
-echo "Wrote $LABWC_ENV"
 
 echo "== Disable systemd kiosk =="
 if systemctl list-unit-files tap-control-kiosk.service >/dev/null 2>&1; then
@@ -46,7 +30,12 @@ echo "== Remove XDG kiosk desktop (labwc-only launcher) =="
 rm -f "$AUTOSTART_DIR"/tap-control*.desktop
 echo "Removed $AUTOSTART_DIR/tap-control*.desktop (if any)"
 
-echo "== labwc autostart: kiosk line only =="
+if ! command -v wtype >/dev/null 2>&1; then
+  echo "Installing wtype (needed to trigger labwc HideCursor)..."
+  sudo apt-get install -y wtype
+fi
+
+echo "== labwc autostart: kiosk + hide cursor =="
 if [ -f "$LABWC_AUTOSTART" ]; then
   bak="$LABWC_AUTOSTART.bak.$(date +%Y%m%d%H%M%S)"
   cp "$LABWC_AUTOSTART" "$bak"
@@ -56,14 +45,22 @@ cat >"$LABWC_AUTOSTART" <<EOF
 #!/bin/sh
 # tap-control extras only — panel/session stay in /etc/xdg/labwc/autostart
 $START_KIOSK &
+# labwc 0.8.4+: HideCursor + WarpCursor bound to Alt+Super+h
+( sleep 10; wtype -M alt -M logo -P h -m logo -m alt ) &
 EOF
 chmod +x "$LABWC_AUTOSTART"
 echo "Wrote $LABWC_AUTOSTART"
 
-echo "== labwc fullscreen window rules =="
-RULES=$(
+echo "== labwc rc.xml: fullscreen rules + HideCursor keybind =="
+SNIPPET=$(
   cat <<EOF
   $MARKER_BEGIN
+  <keyboard>
+    <keybind key="A-W-h">
+      <action name="HideCursor"/>
+      <action name="WarpCursor" x="-1" y="-1"/>
+    </keybind>
+  </keyboard>
   <windowRules>
     <windowRule identifier="org.gnome.Epiphany">
       <action name="ToggleFullscreen"/>
@@ -79,7 +76,6 @@ RULES=$(
 EOF
 )
 
-# Replace previous marked block if present
 if [ -f "$RC_XML" ] && grep -qF "$MARKER_BEGIN" "$RC_XML" 2>/dev/null; then
   tmp="$(mktemp)"
   awk -v begin="$MARKER_BEGIN" -v end="$MARKER_END" '
@@ -88,20 +84,28 @@ if [ -f "$RC_XML" ] && grep -qF "$MARKER_BEGIN" "$RC_XML" 2>/dev/null; then
     !skip { print }
   ' "$RC_XML" >"$tmp"
   mv "$tmp" "$RC_XML"
-  echo "Removed old marked fullscreen block from $RC_XML"
+  echo "Removed old marked block from $RC_XML"
+fi
+
+# If a broken empty <openbox_config/> stub exists alone, start clean
+if [ -f "$RC_XML" ] && grep -q '<openbox_config' "$RC_XML" \
+  && ! grep -q '<labwc_config' "$RC_XML"; then
+  bak="$RC_XML.bak.$(date +%Y%m%d%H%M%S)"
+  mv "$RC_XML" "$bak"
+  echo "Moved non-labwc rc.xml → $bak"
 fi
 
 if [ ! -f "$RC_XML" ]; then
   cat >"$RC_XML" <<EOF
 <?xml version="1.0"?>
 <labwc_config>
-$RULES
+$SNIPPET
 </labwc_config>
 EOF
   echo "Created $RC_XML"
 else
   tmp="$(mktemp)"
-  awk -v rules="$RULES" '
+  awk -v rules="$SNIPPET" '
     /<\/labwc_config>/ && !done {
       print rules
       done=1
@@ -109,15 +113,17 @@ else
     { print }
   ' "$RC_XML" >"$tmp"
   mv "$tmp" "$RC_XML"
-  echo "Merged fullscreen rules into $RC_XML"
+  echo "Merged HideCursor + fullscreen rules into $RC_XML"
 fi
 
 echo
-echo "Verify:"
-echo "  cat ~/.config/labwc/autostart          # only start-kiosk.sh"
-echo "  cat ~/.config/labwc/environment        # blank cursor theme"
-echo "  ls ~/.config/autostart/tap-control* 2>/dev/null || echo '(no xdg kiosk desktop)'"
+echo "labwc version (HideCursor needs 0.8.4+):"
+labwc -v 2>/dev/null || labwc --version 2>/dev/null || echo "(could not read version)"
 echo
-echo "Test: $START_KIOSK"
-echo "Log:  $USER_HOME/tap-control-kiosk.log"
-echo "Reboot required for the blank cursor theme (labwc environment)."
+echo "Verify:"
+echo "  cat ~/.config/labwc/autostart"
+echo "  grep -A6 HideCursor ~/.config/labwc/rc.xml"
+echo
+echo "Manual test now (if already in a labwc session):"
+echo "  wtype -M alt -M logo -P h -m logo -m alt"
+echo "Then reboot."

@@ -148,5 +148,17 @@ fi
 hide_desktop_chrome
 try_fullscreen &
 
+# labwc 0.8.4+: Alt+Super+h → HideCursor (bound in install-kiosk-autostart.sh)
+(
+  sleep 8
+  if command -v wtype >/dev/null 2>&1; then
+    wtype -M alt -M logo -P h -m logo -m alt 2>/dev/null \
+      && echo "hid cursor via labwc HideCursor (wtype A-W-h)" \
+      || echo "warning: wtype HideCursor keybind failed"
+  else
+    echo "warning: wtype not installed — cursor may stay visible"
+  fi
+) &
+
 wait "$EPID"
 echo "epiphany exited: $?"

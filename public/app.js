@@ -69,9 +69,9 @@ function fillPourHistoryList(list, pours) {
     return;
   }
 
-  for (const pour of pours) {
+  pours.forEach((pour, index) => {
     const row = document.createElement('li');
-    row.className = 'pour-row';
+    row.className = 'pour-row' + (index % 2 === 0 ? ' pour-row--a' : ' pour-row--b');
 
     const time = document.createElement('time');
     time.dateTime = pour.ended_at || pour.started_at || '';
@@ -84,7 +84,7 @@ function fillPourHistoryList(list, pours) {
     row.appendChild(time);
     row.appendChild(volume);
     list.appendChild(row);
-  }
+  });
 }
 
 function createTapCard(tap) {

@@ -49,16 +49,29 @@ html.lite .pour-history-list,
 body.lite .pour-history-list {
   min-height: 0;
   overflow: hidden;
+  justify-content: space-evenly;
+}
+
+html.lite .pour-row--a,
+body.lite .pour-row--a {
+  background: #2a241c;
+  box-shadow: inset 3px 0 0 var(--amber);
+}
+
+html.lite .pour-row--b,
+body.lite .pour-row--b {
+  background: #1a1612;
+  box-shadow: inset 3px 0 0 #5a4e42;
 }
 
 html.lite .beer-name,
 body.lite .beer-name {
-  font-size: clamp(1.1rem, 3.2vh, 1.5rem) !important;
+  font-size: clamp(1.35rem, 3.6vh, 2rem) !important;
 }
 
 html.lite .brewery,
 body.lite .brewery {
-  font-size: clamp(0.8rem, 2vh, 1rem);
+  font-size: clamp(0.95rem, 2.4vh, 1.2rem);
   min-height: 0;
 }
 
@@ -101,27 +114,21 @@ body.lite .meter {
 
 html.lite .meter-bar,
 body.lite .meter-bar {
-  height: clamp(0.7rem, 2vh, 1.1rem);
+  height: clamp(1rem, 2.6vh, 1.45rem);
 }
 
 html.lite .meter-stats,
 body.lite .meter-stats {
-  font-size: clamp(1rem, 2.8vh, 1.25rem);
+  font-size: clamp(1.1rem, 3vh, 1.4rem);
 }
 
 html.lite .pour-row,
 body.lite .pour-row {
-  font-size: clamp(0.8rem, 2vh, 0.95rem);
+  font-size: clamp(0.95rem, 2.4vh, 1.2rem);
+  padding: 0.45rem 0.7rem;
 }
 
-@media (max-height: 520px) {
-  html.lite .pour-history,
-  body.lite .pour-history {
-    display: none;
-  }
-
-  html.lite .brewery,
-  body.lite .brewery {
-    display: none;
-  }
+html.lite .pour-history-title,
+body.lite .pour-history-title {
+  font-size: 0.8rem;
 }

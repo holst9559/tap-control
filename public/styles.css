@@ -144,7 +144,7 @@ body::before {
   flex-direction: column;
   justify-content: flex-start;
   align-content: flex-start;
-  gap: 0.35rem;
+  gap: 0.5rem;
   overflow: hidden;
 }
 

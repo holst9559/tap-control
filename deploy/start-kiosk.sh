@@ -156,23 +156,31 @@ hide_cursor() {
       || true
   fi
 
-  # 2) Nudge pointer over the kiosk window so CSS cursor:none applies.
-  #    labwc < 0.8.4 has no HideCursor; Pi OS has no wlrctl package — use ydotool.
+  # 2) Nudge pointer so CSS cursor:none applies (any move is enough).
   if command -v ydotool >/dev/null 2>&1; then
-    # Syntax varies by ydotool version
-    if ydotool mousemove --absolute -x 200 -y 200 2>/dev/null \
-      || ydotool mousemove -a 200 200 2>/dev/null \
+    export YDOTOOL_SOCKET="${YDOTOOL_SOCKET:-/tmp/.ydotool_socket}"
+    # Ensure daemon is up (older Pi packages often leave it stopped)
+    if [ ! -S "$YDOTOOL_SOCKET" ] && [ ! -S /tmp/.ydotool_socket ] \
+      && [ ! -S "$HOME/.ydotool_socket" ]; then
+      if systemctl is-active --quiet tap-control-ydotoold.service 2>/dev/null; then
+        true
+      elif command -v ydotoold >/dev/null 2>&1; then
+        ydotoold >/tmp/ydotoold-user.log 2>&1 &
+        sleep 1
+      fi
+    fi
+    # Prefer relative move — works on older ydotool without --absolute
+    if ydotool mousemove 60 60 2>/dev/null \
+      || ydotool mousemove -x 60 -y 60 2>/dev/null \
+      || YDOTOOL_SOCKET=/tmp/.ydotool_socket ydotool mousemove 60 60 2>/dev/null \
       || ydotool mousemove --absolute 200 200 2>/dev/null; then
       echo "nudged pointer via ydotool (CSS cursor:none)"
       return 0
     fi
   fi
-  if command -v wlrctl >/dev/null 2>&1; then
-    wlrctl pointer move 200 200 2>/dev/null \
-      && echo "nudged pointer via wlrctl (CSS cursor:none)" \
-      && return 0
-  fi
-  echo "warning: cannot nudge pointer. On labwc 0.8.1 run: ./deploy/install-ydotool-cursor.sh"
+
+  echo "warning: ydotool nudge failed (ydotoold running?). Reliable fallback:"
+  echo "  ./deploy/install-x11-unclutter.sh"
 }
 
 (

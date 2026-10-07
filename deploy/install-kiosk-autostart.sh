@@ -1,9 +1,6 @@
 #!/bin/bash
-# Install kiosk autostart for Raspberry Pi OS (labwc --merge-config).
-#
-# - User ~/.config/labwc/autostart must contain ONLY tap-control lines
-#   (never a copy of /etc/xdg/labwc/autostart — that doubles the toolbar).
-# - Cursor hide uses labwc HideCursor (0.8.4+) via a keybind + wtype.
+# Install kiosk autostart for Raspberry Pi OS (X11 and/or labwc).
+# start-kiosk.sh uses flock, so registering both XDG + labwc is safe.
 
 set -e
 
@@ -13,64 +10,86 @@ AUTOSTART_DIR="$USER_HOME/.config/autostart"
 LABWC_DIR="$USER_HOME/.config/labwc"
 LABWC_AUTOSTART="$LABWC_DIR/autostart"
 RC_XML="$LABWC_DIR/rc.xml"
+LXDE_AUTOSTART_DIR="$USER_HOME/.config/lxsession/LXDE-pi"
+LXDE_AUTOSTART="$LXDE_AUTOSTART_DIR/autostart"
 MARKER_BEGIN="<!-- tap-control-kiosk-begin -->"
 MARKER_END="<!-- tap-control-kiosk-end -->"
 START_KIOSK="$REPO_DIR/deploy/start-kiosk.sh"
 
 chmod +x "$START_KIOSK" "$REPO_DIR/deploy/install-kiosk-autostart.sh"
-mkdir -p "$AUTOSTART_DIR" "$LABWC_DIR"
+mkdir -p "$AUTOSTART_DIR"
 
-echo "== Disable systemd kiosk =="
+echo "== Disable systemd kiosk unit =="
 if systemctl list-unit-files tap-control-kiosk.service >/dev/null 2>&1; then
   sudo systemctl disable --now tap-control-kiosk.service 2>/dev/null || true
   echo "Disabled tap-control-kiosk.service"
 fi
 
-echo "== Remove XDG kiosk desktop (labwc-only launcher) =="
-rm -f "$AUTOSTART_DIR"/tap-control*.desktop
-echo "Removed $AUTOSTART_DIR/tap-control*.desktop (if any)"
+echo "== XDG autostart (required for X11 / LXDE-pi) =="
+cat >"$AUTOSTART_DIR/tap-control-kiosk.desktop" <<EOF
+[Desktop Entry]
+Type=Application
+Name=Tap Control Kiosk
+Comment=Fullscreen Epiphany on localhost:3000
+Exec=/bin/bash $START_KIOSK
+X-GNOME-Autostart-enabled=true
+StartupNotify=false
+Terminal=false
+Hidden=false
+EOF
+echo "Installed $AUTOSTART_DIR/tap-control-kiosk.desktop"
 
-echo "== Cursor-hide tools =="
-LABWC_VER="$(labwc -v 2>/dev/null || labwc --version 2>/dev/null || echo unknown)"
-echo "labwc version: $LABWC_VER"
-sudo apt-get install -y wtype || true
-# Pi OS has no wlrctl package. On labwc < 0.8.4 use ydotool to nudge the pointer.
-if ! echo "$LABWC_VER" | grep -qE '0\.8\.[4-9]|0\.9\.|0\.[1-9][0-9]'; then
-  echo "labwc < 0.8.4 — installing ydotool for pointer nudge..."
-  bash "$REPO_DIR/deploy/install-ydotool-cursor.sh" || true
+echo "== unclutter (X11 cursor hide — forum recipe: unclutter -idle 0) =="
+sudo apt-get update
+sudo apt-get install -y unclutter
+cat >"$AUTOSTART_DIR/unclutter.desktop" <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Unclutter
+Comment=Hide mouse pointer for kiosk
+Exec=unclutter -idle 0 -root
+X-GNOME-Autostart-enabled=true
+StartupNotify=false
+Terminal=false
+EOF
+echo "Installed $AUTOSTART_DIR/unclutter.desktop"
+
+# Optional: classic LXDE-pi autostart line (older Pi OS X11 images)
+if [ -d /etc/xdg/lxsession/LXDE-pi ] || [ -d "$LXDE_AUTOSTART_DIR" ]; then
+  mkdir -p "$LXDE_AUTOSTART_DIR"
+  if [ ! -f "$LXDE_AUTOSTART" ] && [ -f /etc/xdg/lxsession/LXDE-pi/autostart ]; then
+    cp /etc/xdg/lxsession/LXDE-pi/autostart "$LXDE_AUTOSTART"
+    echo "Copied system LXDE-pi autostart → $LXDE_AUTOSTART"
+  fi
+  if [ -f "$LXDE_AUTOSTART" ]; then
+    grep -vE 'start-kiosk\.sh|unclutter' "$LXDE_AUTOSTART" >"$LXDE_AUTOSTART.tmp" || true
+    mv "$LXDE_AUTOSTART.tmp" "$LXDE_AUTOSTART"
+    echo "@unclutter -idle 0" >>"$LXDE_AUTOSTART"
+    echo "@$START_KIOSK" >>"$LXDE_AUTOSTART"
+    echo "Updated $LXDE_AUTOSTART"
+  fi
 fi
 
-echo "== labwc autostart: kiosk + hide cursor =="
+echo "== labwc extras (only used if you boot Wayland/labwc again) =="
+mkdir -p "$LABWC_DIR"
 if [ -f "$LABWC_AUTOSTART" ]; then
   bak="$LABWC_AUTOSTART.bak.$(date +%Y%m%d%H%M%S)"
   cp "$LABWC_AUTOSTART" "$bak"
-  echo "Backed up → $bak"
 fi
+# Keep labwc autostart minimal — flock prevents double browser with XDG
 cat >"$LABWC_AUTOSTART" <<EOF
 #!/bin/sh
-# tap-control extras only — panel/session stay in /etc/xdg/labwc/autostart
 $START_KIOSK &
-# labwc 0.8.4+: HideCursor + WarpCursor bound to Alt+Super+h
-( sleep 10; wtype -M alt -M logo -P h -m logo -m alt ) &
 EOF
 chmod +x "$LABWC_AUTOSTART"
 echo "Wrote $LABWC_AUTOSTART"
 
-echo "== labwc rc.xml: fullscreen rules + HideCursor keybind =="
+# Fullscreen window rules (harmless on X11)
 SNIPPET=$(
   cat <<EOF
   $MARKER_BEGIN
-  <keyboard>
-    <keybind key="A-W-h">
-      <action name="HideCursor"/>
-      <action name="WarpCursor" x="-1" y="-1"/>
-    </keybind>
-  </keyboard>
   <windowRules>
     <windowRule identifier="org.gnome.Epiphany">
-      <action name="ToggleFullscreen"/>
-    </windowRule>
-    <windowRule identifier="org.gnome.Epiphany.WebApp_tap-control-kiosk">
       <action name="ToggleFullscreen"/>
     </windowRule>
     <windowRule identifier="epiphany">
@@ -80,7 +99,6 @@ SNIPPET=$(
   $MARKER_END
 EOF
 )
-
 if [ -f "$RC_XML" ] && grep -qF "$MARKER_BEGIN" "$RC_XML" 2>/dev/null; then
   tmp="$(mktemp)"
   awk -v begin="$MARKER_BEGIN" -v end="$MARKER_END" '
@@ -89,17 +107,7 @@ if [ -f "$RC_XML" ] && grep -qF "$MARKER_BEGIN" "$RC_XML" 2>/dev/null; then
     !skip { print }
   ' "$RC_XML" >"$tmp"
   mv "$tmp" "$RC_XML"
-  echo "Removed old marked block from $RC_XML"
 fi
-
-# If a broken empty <openbox_config/> stub exists alone, start clean
-if [ -f "$RC_XML" ] && grep -q '<openbox_config' "$RC_XML" \
-  && ! grep -q '<labwc_config' "$RC_XML"; then
-  bak="$RC_XML.bak.$(date +%Y%m%d%H%M%S)"
-  mv "$RC_XML" "$bak"
-  echo "Moved non-labwc rc.xml → $bak"
-fi
-
 if [ ! -f "$RC_XML" ]; then
   cat >"$RC_XML" <<EOF
 <?xml version="1.0"?>
@@ -107,31 +115,24 @@ if [ ! -f "$RC_XML" ]; then
 $SNIPPET
 </labwc_config>
 EOF
-  echo "Created $RC_XML"
-else
+elif grep -q '</labwc_config>' "$RC_XML"; then
   tmp="$(mktemp)"
   awk -v rules="$SNIPPET" '
-    /<\/labwc_config>/ && !done {
-      print rules
-      done=1
-    }
+    /<\/labwc_config>/ && !done { print rules; done=1 }
     { print }
   ' "$RC_XML" >"$tmp"
   mv "$tmp" "$RC_XML"
-  echo "Merged HideCursor + fullscreen rules into $RC_XML"
 fi
 
 echo
-echo "Verify:"
-echo "  cat ~/.config/labwc/autostart"
-echo "  grep -A6 HideCursor ~/.config/labwc/rc.xml"
+echo "Done for X11 + Wayland."
+echo "  Kiosk:     ~/.config/autostart/tap-control-kiosk.desktop"
+echo "  Cursor:    ~/.config/autostart/unclutter.desktop  (unclutter -idle 0)"
 echo
-if echo "$LABWC_VER" | grep -qE '0\.8\.[0-3]|0\.[0-7]\.'; then
-  echo "Your labwc ($LABWC_VER) is older than 0.8.4 — HideCursor is NOT available."
-  echo "start-kiosk.sh will nudge the pointer with wlrctl so CSS can hide it."
-  echo "For a proper compositor hide, upgrade when possible:"
-  echo "  sudo apt update && apt-cache policy labwc"
-  echo "  sudo apt install -y labwc   # if a newer package exists"
-fi
+echo "Confirm desktop is X11:"
+echo "  echo \$XDG_SESSION_TYPE   # should say x11 after graphical login"
 echo
+echo "Test now:"
+echo "  unclutter -idle 0 -root &"
+echo "  $START_KIOSK"
 echo "Then reboot."

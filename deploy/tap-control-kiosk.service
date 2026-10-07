@@ -1,20 +1,24 @@
 [Unit]
-Description=Tap Control Epiphany kiosk (legacy — prefer desktop autostart)
-After=graphical.target tap-control.service
+Description=Tap Control kiosk browser
+After=graphical.target network-online.target tap-control.service
+Wants=network-online.target
 Wants=tap-control.service
 
 [Service]
 Type=simple
 User=antonholst
+Group=antonholst
 Environment=DISPLAY=:0
 Environment=XAUTHORITY=/home/antonholst/.Xauthority
-Environment=XDG_RUNTIME_DIR=/run/user/1000
 Environment=HOME=/home/antonholst
-# Wait for auto-login / compositor; still less reliable than ~/.config/autostart
-ExecStartPre=/bin/sleep 15
-ExecStart=/home/antonholst/tap-control/deploy/start-kiosk.sh
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+Environment=GDK_BACKEND=x11
+# Wait for auto-login / X before launching the browser.
+ExecStartPre=/bin/bash -c 'for i in $(seq 1 180); do [ -S /tmp/.X11-unix/X0 ] && [ -f /home/antonholst/.Xauthority ] && exit 0; sleep 1; done; echo "X not ready"; exit 1'
+ExecStart=/bin/bash /home/antonholst/tap-control/deploy/start-kiosk.sh
 Restart=on-failure
 RestartSec=8
+TimeoutStartSec=240
 
 [Install]
 WantedBy=graphical.target

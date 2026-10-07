@@ -88,12 +88,6 @@ wait_for_app() {
   return 1
 }
 
-hide_desktop_chrome() {
-  pkill -u "$(id -un)" -x wf-panel-pi 2>/dev/null || true
-  pkill -u "$(id -un)" -x lxpanel 2>/dev/null || true
-  echo "hid panel chrome (best-effort)"
-}
-
 find_browser() {
   # Prefer Chromium on X11 — Epiphany often starts WebKit with no mapped window.
   local c
@@ -179,6 +173,8 @@ start_chromium() {
     --check-for-update-interval=31536000 \
     --autoplay-policy=no-user-gesture-required \
     --ozone-platform=x11 \
+    --disable-dev-shm-usage \
+    --no-first-run \
     "$URL" &
   BPID=$!
   echo "chromium pid=$BPID bin=$bin profile=$CHROME_PROFILE"
@@ -194,7 +190,10 @@ start_epiphany() {
   echo "epiphany pid=$BPID bin=$bin profile=$EPHY_PROFILE"
 }
 
-wait_for_display || true
+if ! wait_for_display; then
+  echo "error: display never became ready"
+  exit 1
+fi
 wait_for_app || true
 kill_browsers
 
@@ -253,8 +252,11 @@ if [ "$USE_X11" = 1 ] && ! window_listed; then
   fi
 fi
 
-hide_desktop_chrome
+# Keep desktop panel — kiosk fullscreen covers it; killing lxpanel is flaky on Pi OS.
 raise_and_fullscreen &
 
 wait "$BPID"
-echo "browser exited: $?"
+code=$?
+echo "browser exited: $code"
+# Non-zero so systemd Restart=on-failure brings the kiosk back.
+exit 1

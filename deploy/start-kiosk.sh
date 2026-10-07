@@ -5,6 +5,8 @@
 URL="${TAP_CONTROL_KIOSK_URL:-http://localhost:3000/?lite=1}"
 USER_HOME="${HOME:-/home/antonholst}"
 LOG="${TAP_CONTROL_KIOSK_LOG:-$USER_HOME/tap-control-kiosk.log}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+APP_DESKTOP="${TAP_CONTROL_KIOSK_DESKTOP:-$SCRIPT_DIR/epiphany-kiosk.desktop}"
 
 exec >>"$LOG" 2>&1
 echo "---- $(date -Iseconds) kiosk start ----"
@@ -54,21 +56,43 @@ wait_for_app() {
   return 1
 }
 
+hide_desktop_chrome() {
+  # Panel stays on top unless the window is truly fullscreen (common on labwc).
+  pkill -u "$(id -un)" -x wf-panel-pi 2>/dev/null || true
+  pkill -u "$(id -un)" -x lxpanel 2>/dev/null || true
+  pkill -u "$(id -un)" -x pcmanfm 2>/dev/null || true
+  echo "hid panel/desktop chrome (best-effort)"
+}
+
 try_fullscreen() {
+  # Wait for Epiphany to map; labwc window rule may already have fullscreened it.
   sleep 4
+
+  # Prefer additive fullscreen (does not toggle off if already fullscreen).
   if command -v wmctrl >/dev/null 2>&1; then
-    wmctrl -x -r epiphany.Epiphany -b add,fullscreen 2>/dev/null && echo "fullscreen via wmctrl" && return 0
-    wmctrl -r :ACTIVE: -b add,fullscreen 2>/dev/null && echo "fullscreen via wmctrl active" && return 0
+    if wmctrl -x -r epiphany.Epiphany -b add,fullscreen 2>/dev/null \
+      || wmctrl -r :ACTIVE: -b add,fullscreen 2>/dev/null; then
+      echo "fullscreen via wmctrl"
+      return 0
+    fi
+  fi
+
+  # F11 toggles — only send once, and only if additive tools failed.
+  if command -v wtype >/dev/null 2>&1; then
+    wtype -k F11 2>/dev/null && echo "fullscreen via wtype F11" && return 0
   fi
   if command -v xdotool >/dev/null 2>&1; then
-    xdotool search --class epiphany windowactivate --sync key F11 2>/dev/null && echo "fullscreen via F11" && return 0
+    xdotool search --class epiphany windowactivate --sync key F11 2>/dev/null \
+      && echo "fullscreen via xdotool F11" && return 0
   fi
-  echo "could not force fullscreen (open manually with F11 if needed)"
+
+  echo "could not force fullscreen via tools (labwc window rule may still apply)"
   return 0
 }
 
 wait_for_display || true
 wait_for_app || true
+hide_desktop_chrome
 
 pkill -u "$(id -un)" -x epiphany 2>/dev/null || true
 pkill -u "$(id -un)" -f '/usr/bin/epiphany' 2>/dev/null || true
@@ -79,10 +103,16 @@ if [ ! -x /usr/bin/epiphany ]; then
   exit 1
 fi
 
-# Newer Epiphany treats --application-mode's next arg as a .desktop file, not a URL.
-/usr/bin/epiphany --new-window "$URL" &
-EPID=$!
-echo "epiphany pid=$EPID"
+# Prefer application-mode (chrome-less UI). Newer Epiphany wants a .desktop path.
+if [ -f "$APP_DESKTOP" ]; then
+  /usr/bin/epiphany --application-mode "$APP_DESKTOP" &
+  EPID=$!
+  echo "epiphany application-mode pid=$EPID desktop=$APP_DESKTOP"
+else
+  /usr/bin/epiphany --new-window "$URL" &
+  EPID=$!
+  echo "epiphany new-window pid=$EPID"
+fi
 
 try_fullscreen &
 

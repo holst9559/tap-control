@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<!-- Merge windowRules into ~/.config/labwc/rc.xml (install-kiosk-autostart.sh does this). -->
+<labwc_config>
+  <windowRules>
+    <windowRule identifier="org.gnome.Epiphany">
+      <action name="ToggleFullscreen"/>
+    </windowRule>
+    <windowRule identifier="epiphany">
+      <action name="ToggleFullscreen"/>
+    </windowRule>
+  </windowRules>
+</labwc_config>

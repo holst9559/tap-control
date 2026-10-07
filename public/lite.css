@@ -4,6 +4,10 @@ html.lite,
 html.lite body,
 body.lite {
   background: #12100d !important;
+  height: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
 }
 
 html.lite body::before,
@@ -14,7 +18,12 @@ body.lite::before {
 html.lite .brand,
 body.lite .brand {
   text-shadow: none !important;
-  font-size: 2.2rem !important;
+  font-size: clamp(1.4rem, 4.5vh, 2.2rem) !important;
+}
+
+html.lite .last-pour,
+body.lite .last-pour {
+  font-size: clamp(0.85rem, 2.2vh, 1.05rem);
 }
 
 html.lite .meter-fill,
@@ -31,21 +40,88 @@ body.lite .meter-fill.low {
 html.lite .pour-history,
 body.lite .pour-history {
   border-top-color: #3a3128;
+  flex: 1 1 auto;
   min-height: 0;
+  overflow: hidden;
+}
+
+html.lite .pour-history-list,
+body.lite .pour-history-list {
+  min-height: 0;
+  overflow: hidden;
 }
 
 html.lite .beer-name,
 body.lite .beer-name {
-  font-size: 1.5rem !important;
+  font-size: clamp(1.1rem, 3.2vh, 1.5rem) !important;
+}
+
+html.lite .brewery,
+body.lite .brewery {
+  font-size: clamp(0.8rem, 2vh, 1rem);
+  min-height: 0;
 }
 
 html.lite .kiosk,
 body.lite .kiosk {
-  padding: 1.25rem 1.5rem;
-  gap: 1rem;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  padding: clamp(0.5rem, 1.8vh, 1.25rem) clamp(0.75rem, 2vw, 1.5rem);
+  gap: clamp(0.4rem, 1.5vh, 1rem);
+  overflow: hidden;
+}
+
+html.lite .kiosk-header,
+body.lite .kiosk-header {
+  flex-shrink: 0;
 }
 
 html.lite .taps,
 body.lite .taps {
-  gap: 1rem;
+  gap: clamp(0.4rem, 1.5vh, 1rem);
+  min-height: 0;
+  overflow: hidden;
+}
+
+html.lite .tap-card,
+body.lite .tap-card {
+  min-height: 0;
+  overflow: hidden;
+  gap: clamp(0.25rem, 1vh, 0.75rem);
+  padding: 0.35rem 0;
+}
+
+html.lite .meter,
+body.lite .meter {
+  flex-shrink: 0;
+  gap: 0.4rem;
+  padding-top: 0.25rem;
+}
+
+html.lite .meter-bar,
+body.lite .meter-bar {
+  height: clamp(0.7rem, 2vh, 1.1rem);
+}
+
+html.lite .meter-stats,
+body.lite .meter-stats {
+  font-size: clamp(1rem, 2.8vh, 1.25rem);
+}
+
+html.lite .pour-row,
+body.lite .pour-row {
+  font-size: clamp(0.8rem, 2vh, 0.95rem);
+}
+
+@media (max-height: 520px) {
+  html.lite .pour-history,
+  body.lite .pour-history {
+    display: none;
+  }
+
+  html.lite .brewery,
+  body.lite .brewery {
+    display: none;
+  }
 }

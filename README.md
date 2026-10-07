@@ -41,9 +41,12 @@ Ingen HAT/ADC behövs. För permanent installation är en skruvplint-GPIO-breako
 ## Snabbstart (utvecklings-PC)
 
 ```bash
-npm install
-npm start
+# Skippa native pigpio-build på desktop (valfritt paket):
+npm install --omit=optional
+npm run dev
 ```
+
+`npm run dev` sätter `TAP_CONTROL_MOCK=1` — ingen pigpio behövs. Även `npm start` auto-mockar utanför Pi (icke-ARM Linux / macOS / Windows).
 
 Öppna:
 
@@ -110,7 +113,7 @@ sudo journalctl -u tap-control -n 40 --no-pager
 Kiosk (Epiphany fullscreen) ska startas via **skrivbordets autostart**, inte system-systemd (systemd hinner ofta före Wayland-sessionen).
 
 ```bash
-sudo apt install -y epiphany-browser wmctrl xdotool curl
+sudo apt install -y epiphany-browser wmctrl xdotool wtype curl
 # Autologin till desktop:
 sudo raspi-config   # System Options → Boot / Auto Login → Desktop
 
@@ -120,6 +123,8 @@ chmod +x deploy/install-kiosk-autostart.sh deploy/start-kiosk.sh
 # Testa: ./deploy/start-kiosk.sh
 # Logg: ~/tap-control-kiosk.log
 ```
+
+Kiosken döljer taskbaren (`wf-panel-pi`), kör Epiphany i application-mode och sätter labwc-fullscreenregel. UI:t (`?lite=1`) är låst till skärmhöjden så volymmätarna alltid syns.
 
 6. LAN-åtkomst: använd `http://<pi-hostname>.local:3000/admin` (Avahi/mDNS) eller Pi:ns IP. Appen binder `0.0.0.0:3000` som standard.
 
@@ -155,7 +160,8 @@ Allt lagras i SQLite under `data/tap_control.db` — **ingen koddeploy** för at
 | -------------------- | ------------------------------------ |
 | `PORT`               | HTTP-port (standard 3000)            |
 | `HOST`               | Bindadress (standard `0.0.0.0`)      |
-| `TAP_CONTROL_MOCK=1` | Tvinga mock-GPIO                     |
+| `TAP_CONTROL_MOCK=1` | Tvinga mock-GPIO (på som standard i `npm run dev`) |
+| `TAP_CONTROL_MOCK=0` | Tvinga riktig pigpio även på icke-Pi |
 | `TAP_CONTROL_DB`     | SQLite-sökväg                        |
 | `src/config.js`      | Standardpinnar, pulser/L, idle ms, PIN |
 

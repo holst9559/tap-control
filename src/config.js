@@ -1,13 +1,29 @@
 const path = require('path');
+const os = require('os');
 
 const ROOT_DIR = path.join(__dirname, '..');
+
+function shouldMockGpio() {
+  const forced = process.env.TAP_CONTROL_MOCK;
+  if (forced === '1' || forced === 'true') {
+    return true;
+  }
+  if (forced === '0' || forced === 'false') {
+    return false;
+  }
+
+  // Auto-mock on non-Pi hosts (desktop Linux/macOS/Windows) so npm run start works without pigpio
+  const arch = os.arch();
+  const isPiArch = arch === 'arm' || arch === 'arm64';
+  return os.platform() !== 'linux' || !isPiArch;
+}
 
 const config = {
   port: Number(process.env.PORT) || 3000,
   host: process.env.HOST || '0.0.0.0',
 
-  // Set TAP_CONTROL_MOCK=1 (or run off a Pi) to simulate pulses without pigpio
-  mockGpio: process.env.TAP_CONTROL_MOCK === '1' || process.env.TAP_CONTROL_MOCK === 'true',
+  // TAP_CONTROL_MOCK=1 forces mock; =0 forces real pigpio. Otherwise auto-mock off-Pi.
+  mockGpio: shouldMockGpio(),
 
   dbPath: process.env.TAP_CONTROL_DB || path.join(ROOT_DIR, 'data', 'tap_control.db'),
   soundsDir: path.join(ROOT_DIR, 'sounds'),

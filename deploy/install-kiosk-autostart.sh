@@ -13,13 +13,28 @@ USER_HOME="${HOME:-/home/antonholst}"
 AUTOSTART_DIR="$USER_HOME/.config/autostart"
 LABWC_DIR="$USER_HOME/.config/labwc"
 LABWC_AUTOSTART="$LABWC_DIR/autostart"
+LABWC_ENV="$LABWC_DIR/environment"
 RC_XML="$LABWC_DIR/rc.xml"
 MARKER_BEGIN="<!-- tap-control-kiosk-begin -->"
 MARKER_END="<!-- tap-control-kiosk-end -->"
 START_KIOSK="$REPO_DIR/deploy/start-kiosk.sh"
+BLANK_CURSOR_PY="$REPO_DIR/deploy/install-blank-cursor.py"
 
 chmod +x "$START_KIOSK" "$REPO_DIR/deploy/install-kiosk-autostart.sh"
 mkdir -p "$AUTOSTART_DIR" "$LABWC_DIR"
+
+echo "== Invisible cursor theme (hides pointer from boot, not only after mouse move) =="
+python3 "$BLANK_CURSOR_PY"
+# labwc reads environment at session start
+if [ -f "$LABWC_ENV" ]; then
+  grep -vE '^(XCURSOR_THEME|XCURSOR_SIZE)=' "$LABWC_ENV" >"$LABWC_ENV.tmp" || true
+  mv "$LABWC_ENV.tmp" "$LABWC_ENV"
+fi
+{
+  echo "XCURSOR_THEME=tap-control-blank"
+  echo "XCURSOR_SIZE=24"
+} >>"$LABWC_ENV"
+echo "Wrote $LABWC_ENV"
 
 echo "== Disable systemd kiosk =="
 if systemctl list-unit-files tap-control-kiosk.service >/dev/null 2>&1; then
@@ -100,8 +115,9 @@ fi
 echo
 echo "Verify:"
 echo "  cat ~/.config/labwc/autostart          # only start-kiosk.sh"
+echo "  cat ~/.config/labwc/environment        # blank cursor theme"
 echo "  ls ~/.config/autostart/tap-control* 2>/dev/null || echo '(no xdg kiosk desktop)'"
 echo
 echo "Test: $START_KIOSK"
 echo "Log:  $USER_HOME/tap-control-kiosk.log"
-echo "Then reboot."
+echo "Reboot required for the blank cursor theme (labwc environment)."

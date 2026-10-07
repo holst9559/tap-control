@@ -5,8 +5,8 @@
 URL="${TAP_CONTROL_KIOSK_URL:-http://localhost:3000/?lite=1}"
 USER_HOME="${HOME:-/home/antonholst}"
 LOG="${TAP_CONTROL_KIOSK_LOG:-$USER_HOME/tap-control-kiosk.log}"
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-APP_DESKTOP="${TAP_CONTROL_KIOSK_DESKTOP:-$SCRIPT_DIR/epiphany-kiosk.desktop}"
+# Newer Epiphany requires this WebApp_ prefix for --application-mode --profile.
+PROFILE="${TAP_CONTROL_KIOSK_PROFILE:-$USER_HOME/.local/share/org.gnome.Epiphany.WebApp_tap-control-kiosk}"
 
 exec >>"$LOG" 2>&1
 echo "---- $(date -Iseconds) kiosk start ----"
@@ -57,11 +57,11 @@ wait_for_app() {
 }
 
 hide_desktop_chrome() {
-  # Panel stays on top unless the window is truly fullscreen (common on labwc).
+  # Only hide the panel — killing pcmanfm blanks the wallpaper (black flash) if the
+  # browser fails to start. Fullscreen covers the desktop anyway.
   pkill -u "$(id -un)" -x wf-panel-pi 2>/dev/null || true
   pkill -u "$(id -un)" -x lxpanel 2>/dev/null || true
-  pkill -u "$(id -un)" -x pcmanfm 2>/dev/null || true
-  echo "hid panel/desktop chrome (best-effort)"
+  echo "hid panel chrome (best-effort)"
 }
 
 try_fullscreen() {
@@ -92,9 +92,9 @@ try_fullscreen() {
 
 wait_for_display || true
 wait_for_app || true
-hide_desktop_chrome
 
 pkill -u "$(id -un)" -x epiphany 2>/dev/null || true
+pkill -u "$(id -un)" -x epiphany-browser 2>/dev/null || true
 pkill -u "$(id -un)" -f '/usr/bin/epiphany' 2>/dev/null || true
 sleep 1
 
@@ -103,15 +103,18 @@ if [ ! -x /usr/bin/epiphany ]; then
   exit 1
 fi
 
-# Prefer application-mode (chrome-less UI). Newer Epiphany wants a .desktop path.
-if [ -f "$APP_DESKTOP" ]; then
-  /usr/bin/epiphany --application-mode "$APP_DESKTOP" &
-  EPID=$!
-  echo "epiphany application-mode pid=$EPID desktop=$APP_DESKTOP"
+# application-mode + correctly named profile (deploy/*.desktop is rejected as invalid).
+mkdir -p "$PROFILE"
+/usr/bin/epiphany --application-mode --profile="$PROFILE" "$URL" &
+EPID=$!
+echo "epiphany application-mode pid=$EPID profile=$PROFILE url=$URL"
+
+# Hide panel only after browser is up so a failed launch does not blank the desktop.
+sleep 2
+if kill -0 "$EPID" 2>/dev/null; then
+  hide_desktop_chrome
 else
-  /usr/bin/epiphany --new-window "$URL" &
-  EPID=$!
-  echo "epiphany new-window pid=$EPID"
+  echo "epiphany died immediately — leaving desktop chrome alone"
 fi
 
 try_fullscreen &

@@ -22,11 +22,9 @@ UNIT_DST="/etc/systemd/system/tap-control-kiosk.service"
 chmod +x "$START_KIOSK" "$REPO_DIR/deploy/install-kiosk-autostart.sh"
 mkdir -p "$AUTOSTART_DIR" "$OPENBOX_DIR" "$LXDE_DIR" "$LABWC_DIR"
 
-echo "== apt: browser + window tools =="
+echo "== apt: Epiphany + window tools (not Chromium — too heavy for 512MB) =="
 sudo apt-get update
-sudo apt-get install -y unclutter wmctrl xdotool chromium || \
-  sudo apt-get install -y unclutter wmctrl xdotool chromium-browser || \
-  sudo apt-get install -y unclutter wmctrl xdotool
+sudo apt-get install -y unclutter wmctrl xdotool epiphany-browser dbus-x11
 
 echo "== 1) System systemd unit (browser launcher) =="
 sudo tee "$UNIT_DST" >/dev/null <<EOF

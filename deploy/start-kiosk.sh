@@ -1,15 +1,19 @@
 #!/bin/bash
-# Start a single fullscreen browser on the keezer UI (X11 Chromium preferred).
+# Start a single fullscreen Epiphany window on the keezer UI.
+# Default is Epiphany (fits Pi Zero 2W / 512MB). Chromium only if forced:
+#   TAP_CONTROL_KIOSK_BROWSER=chromium
 
 URL="${TAP_CONTROL_KIOSK_URL:-http://localhost:3000/}"
 USER_HOME="${HOME:-/home/antonholst}"
 LOG="${TAP_CONTROL_KIOSK_LOG:-$USER_HOME/tap-control-kiosk.log}"
 LOCK_DIR="${TAP_CONTROL_KIOSK_LOCK_DIR:-$USER_HOME/.cache}"
 LOCK="$LOCK_DIR/tap-control-kiosk.lock"
-CHROME_PROFILE="${TAP_CONTROL_KIOSK_CHROME_PROFILE:-$USER_HOME/.config/chromium-tap-kiosk}"
 EPHY_PROFILE="${TAP_CONTROL_KIOSK_PROFILE:-$USER_HOME/.config/epiphany-tap-kiosk}"
+CHROME_PROFILE="${TAP_CONTROL_KIOSK_CHROME_PROFILE:-$USER_HOME/.config/chromium-tap-kiosk}"
+# epiphany | chromium — default epiphany for low RAM
+FORCE_BROWSER="${TAP_CONTROL_KIOSK_BROWSER:-epiphany}"
 
-mkdir -p "$(dirname "$LOG")" "$LOCK_DIR" "$CHROME_PROFILE" "$EPHY_PROFILE"
+mkdir -p "$(dirname "$LOG")" "$LOCK_DIR" "$EPHY_PROFILE"
 exec >>"$LOG" 2>&1
 echo "---- $(date -Iseconds) kiosk start ----"
 
@@ -29,7 +33,7 @@ export XAUTHORITY="${XAUTHORITY:-$USER_HOME/.Xauthority}"
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 export HOME="$USER_HOME"
 
-# Session bus is required by WebKit/GTK; openbox/SSH launches often omit it.
+# WebKit/GTK need a session bus; systemd User= units often have none.
 if [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
   if [ -S "$XDG_RUNTIME_DIR/bus" ]; then
     export DBUS_SESSION_BUS_ADDRESS="unix:path=$XDG_RUNTIME_DIR/bus"
@@ -56,7 +60,10 @@ else
   fi
   echo "DISPLAY=$DISPLAY WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-}"
 fi
-echo "URL=$URL"
+echo "URL=$URL FORCE_BROWSER=$FORCE_BROWSER"
+
+# Soften WebKit on 512MB-class Pis (compositor often OOMs / blank window).
+export WEBKIT_DISABLE_COMPOSITING_MODE="${WEBKIT_DISABLE_COMPOSITING_MODE:-1}"
 
 wait_for_display() {
   local i
@@ -88,8 +95,23 @@ wait_for_app() {
   return 1
 }
 
-find_browser() {
-  # Prefer Chromium on X11 — Epiphany often starts WebKit with no mapped window.
+find_epiphany() {
+  if [ -x /usr/bin/epiphany ]; then
+    echo /usr/bin/epiphany
+    return 0
+  fi
+  if [ -x /usr/bin/epiphany-browser ]; then
+    echo /usr/bin/epiphany-browser
+    return 0
+  fi
+  if command -v epiphany >/dev/null 2>&1; then
+    command -v epiphany
+    return 0
+  fi
+  return 1
+}
+
+find_chromium() {
   local c
   for c in chromium chromium-browser google-chrome; do
     if command -v "$c" >/dev/null 2>&1; then
@@ -97,37 +119,25 @@ find_browser() {
       return 0
     fi
   done
-  if [ -x /usr/bin/epiphany ]; then
-    echo epiphany
-    return 0
-  fi
-  if [ -x /usr/bin/epiphany-browser ]; then
-    echo epiphany-browser
-    return 0
-  fi
   return 1
 }
 
 kill_browsers() {
-  pkill -u "$(id -un)" -f 'chromium.*tap-kiosk|chromium-browser.*--kiosk|google-chrome.*--kiosk' 2>/dev/null || true
-  pkill -u "$(id -un)" -x chromium 2>/dev/null || true
-  pkill -u "$(id -un)" -x chromium-browser 2>/dev/null || true
   pkill -u "$(id -un)" -x epiphany 2>/dev/null || true
   pkill -u "$(id -un)" -x epiphany-browser 2>/dev/null || true
   pkill -u "$(id -un)" -f '/usr/bin/epiphany' 2>/dev/null || true
   pkill -u "$(id -un)" -f 'org.gnome.Epiphany' 2>/dev/null || true
+  pkill -u "$(id -un)" -f 'chromium.*tap-kiosk|chromium-browser.*--kiosk' 2>/dev/null || true
   sleep 1
-  pkill -9 -u "$(id -un)" -x chromium 2>/dev/null || true
-  pkill -9 -u "$(id -un)" -x chromium-browser 2>/dev/null || true
   pkill -9 -u "$(id -un)" -x epiphany 2>/dev/null || true
   pkill -9 -u "$(id -un)" -x epiphany-browser 2>/dev/null || true
   sleep 1
-  echo "browser processes left: $(pgrep -cu "$(id -un)" -f '[c]hromium|[e]piphany' 2>/dev/null || echo 0)"
+  echo "browser processes left: $(pgrep -cu "$(id -un)" -f '[e]piphany|[c]hromium' 2>/dev/null || echo 0)"
 }
 
 window_listed() {
   command -v wmctrl >/dev/null 2>&1 || return 1
-  wmctrl -lx 2>/dev/null | grep -Ei 'chrom|epiphany|www-browser' >/dev/null
+  wmctrl -lx 2>/dev/null | grep -Ei 'epiphany|chrom|www-browser' >/dev/null
 }
 
 raise_and_fullscreen() {
@@ -137,7 +147,7 @@ raise_and_fullscreen() {
     if command -v wmctrl >/dev/null 2>&1; then
       echo "wmctrl -lx:" >>"$LOG"
       wmctrl -lx 2>/dev/null >>"$LOG" || true
-      win=$(wmctrl -lx 2>/dev/null | awk 'BEGIN{IGNORECASE=1} /chrom|epiphany|www-browser/ {print $1; exit}')
+      win=$(wmctrl -lx 2>/dev/null | awk 'BEGIN{IGNORECASE=1} /epiphany|chrom|www-browser/ {print $1; exit}')
       if [ -n "$win" ]; then
         wmctrl -i -a "$win" 2>/dev/null || true
         wmctrl -i -r "$win" -b add,fullscreen 2>/dev/null || true
@@ -147,10 +157,9 @@ raise_and_fullscreen() {
       fi
     fi
     if command -v xdotool >/dev/null 2>&1; then
-      if xdotool search --class chromium windowactivate --sync key F11 2>/dev/null \
-        || xdotool search --class Chromium windowactivate --sync key F11 2>/dev/null \
-        || xdotool search --class epiphany windowactivate --sync key F11 2>/dev/null \
-        || xdotool search --name 'localhost' windowactivate --sync key F11 2>/dev/null; then
+      if xdotool search --class epiphany windowactivate --sync key F11 2>/dev/null \
+        || xdotool search --name 'localhost' windowactivate --sync key F11 2>/dev/null \
+        || xdotool search --name 'Tap Control' windowactivate --sync key F11 2>/dev/null; then
         echo "fullscreen via xdotool F11 (attempt $i)"
         return 0
       fi
@@ -160,10 +169,22 @@ raise_and_fullscreen() {
   return 1
 }
 
+start_epiphany() {
+  local bin="$1"
+  mkdir -p "$EPHY_PROFILE"
+  export GDK_BACKEND=x11
+  unset WAYLAND_DISPLAY
+  # Reuse profile — wiping forced a 37-step migrator every boot.
+  echo "starting epiphany bin=$bin profile=$EPHY_PROFILE"
+  "$bin" --profile="$EPHY_PROFILE" "$URL" &
+  BPID=$!
+  echo "epiphany pid=$BPID"
+}
+
 start_chromium() {
   local bin="$1"
   mkdir -p "$CHROME_PROFILE"
-  # --kiosk is real fullscreen; --app reduces chrome UI if kiosk unsupported.
+  echo "warning: Chromium is heavy on 512MB — prefer Epiphany"
   "$bin" \
     --user-data-dir="$CHROME_PROFILE" \
     --kiosk \
@@ -177,17 +198,7 @@ start_chromium() {
     --no-first-run \
     "$URL" &
   BPID=$!
-  echo "chromium pid=$BPID bin=$bin profile=$CHROME_PROFILE"
-}
-
-start_epiphany() {
-  local bin="$1"
-  mkdir -p "$EPHY_PROFILE"
-  export GDK_BACKEND=x11
-  unset WAYLAND_DISPLAY
-  "$bin" --profile="$EPHY_PROFILE" "$URL" &
-  BPID=$!
-  echo "epiphany pid=$BPID bin=$bin profile=$EPHY_PROFILE"
+  echo "chromium pid=$BPID bin=$bin"
 }
 
 if ! wait_for_display; then
@@ -197,66 +208,51 @@ fi
 wait_for_app || true
 kill_browsers
 
-BROWSER="$(find_browser)" || {
-  echo "error: no chromium/epiphany found — apt install chromium"
-  exit 1
-}
+BPID=""
+BROWSER=""
+case "$FORCE_BROWSER" in
+  chromium|chrome)
+    BROWSER="$(find_chromium)" || {
+      echo "error: chromium requested but not installed"
+      exit 1
+    }
+    start_chromium "$BROWSER"
+    ;;
+  *)
+    BROWSER="$(find_epiphany)" || {
+      echo "error: epiphany not found — apt install epiphany-browser"
+      exit 1
+    }
+    start_epiphany "$BROWSER"
+    ;;
+esac
 echo "selected browser=$BROWSER"
 
-BPID=""
-case "$BROWSER" in
-  epiphany|epiphany-browser) start_epiphany "$BROWSER" ;;
-  *) start_chromium "$BROWSER" ;;
-esac
-
-sleep 4
+sleep 5
 if ! kill -0 "$BPID" 2>/dev/null; then
-  echo "error: $BROWSER exited immediately"
+  echo "error: browser exited immediately"
   wait "$BPID" || true
-  # If chromium died instantly, try epiphany once.
-  if [[ "$BROWSER" != epiphany* ]] && [ -x /usr/bin/epiphany ]; then
-    echo "falling back to epiphany"
-    start_epiphany /usr/bin/epiphany
-    sleep 4
-    if ! kill -0 "$BPID" 2>/dev/null; then
-      echo "error: epiphany also exited immediately"
-      wait "$BPID" || true
-      exit 1
-    fi
-  else
-    exit 1
-  fi
+  exit 1
 fi
-echo "$BROWSER still running after 4s (pid=$BPID)"
+echo "browser still running after 5s (pid=$BPID)"
 
-# Epiphany sometimes keeps a process with zero mapped windows — detect and swap.
-if [ "$USE_X11" = 1 ] && ! window_listed; then
-  echo "no browser window in wmctrl yet — waiting…"
-  sleep 6
-  echo "wmctrl -lx after wait:"
-  wmctrl -lx 2>/dev/null || true
+if [ "$USE_X11" = 1 ]; then
   if ! window_listed; then
-    if [[ "$BROWSER" == epiphany* ]]; then
-      for c in chromium chromium-browser; do
-        if command -v "$c" >/dev/null 2>&1; then
-          echo "epiphany has no X window — switching to $c"
-          kill_browsers
-          start_chromium "$c"
-          sleep 5
-          break
-        fi
-      done
-    else
-      echo "warning: chromium running but no wmctrl window yet (may still paint)"
+    echo "no window in wmctrl yet — waiting for Epiphany to map…"
+    sleep 10
+    echo "wmctrl -lx after wait:"
+    wmctrl -lx 2>/dev/null || true
+    if ! window_listed; then
+      echo "error: Epiphany process alive but no X11 window (check dbus/GDK_BACKEND above)"
+      echo "hint: do NOT switch to Chromium on 512MB — fix Epiphany env instead"
+      # Keep process; raise loop may still catch a late window. Do not fall back to Chromium.
     fi
   fi
 fi
 
-# Keep desktop panel — kiosk fullscreen covers it; killing lxpanel is flaky on Pi OS.
 raise_and_fullscreen &
 
 wait "$BPID"
 code=$?
 echo "browser exited: $code"
-# Non-zero so systemd Restart=on-failure brings the kiosk back.
 exit 1

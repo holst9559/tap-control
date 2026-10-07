@@ -24,9 +24,12 @@ if systemctl list-unit-files tap-control-kiosk.service >/dev/null 2>&1; then
   sudo systemctl disable --now tap-control-kiosk.service 2>/dev/null || true
 fi
 
-echo "== apt: unclutter =="
+echo "== apt: browser + window tools =="
 sudo apt-get update
-sudo apt-get install -y unclutter
+# Chromium is the reliable X11 kiosk browser; Epiphany often starts with no window.
+sudo apt-get install -y unclutter wmctrl xdotool chromium || \
+  sudo apt-get install -y unclutter wmctrl xdotool chromium-browser || \
+  sudo apt-get install -y unclutter wmctrl xdotool
 
 echo "== 1) XDG ~/.config/autostart =="
 cat >"$AUTOSTART_DIR/tap-control-kiosk.desktop" <<EOF

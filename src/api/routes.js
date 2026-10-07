@@ -172,7 +172,7 @@ function onPutSettings(req, res) {
   if (body.pour_idle_ms != null) {
     const idle = Number(body.pour_idle_ms);
     if (!Number.isFinite(idle) || idle < 500) {
-      sendError(res, new Error('pour_idle_ms måste vara >= 500'));
+      sendError(res, new Error('pour_idle_ms must be >= 500'));
       return;
     }
     setSetting('pour_idle_ms', String(idle));
@@ -189,7 +189,7 @@ function onPutSettings(req, res) {
   if (body.ui_theme != null) {
     const theme = String(body.ui_theme);
     if (!ALLOWED_UI_THEMES.has(theme)) {
-      sendError(res, new Error('Okänt ui_theme'));
+      sendError(res, new Error('Unknown ui_theme'));
       return;
     }
     setSetting('ui_theme', theme);
@@ -211,7 +211,7 @@ function onChangePin(req, res) {
 
 function onUploadSound(req, res) {
   if (!req.file) {
-    sendError(res, new Error('Fil krävs'));
+    sendError(res, new Error('File required'));
     return;
   }
 
@@ -226,7 +226,7 @@ function onTestSound(req, res) {
   const file = req.body && req.body.sound_file;
   const resolved = soundService.resolveSoundPath(file);
   if (!resolved) {
-    sendError(res, new Error('Ljudfilen hittades inte'));
+    sendError(res, new Error('Sound file not found'));
     return;
   }
   soundService.playFile(resolved);

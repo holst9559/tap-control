@@ -89,11 +89,11 @@ function createKeg(input) {
   let remaining = input.remaining_ml != null ? Number(input.remaining_ml) : capacity;
 
   if (!Number.isFinite(capacity) || capacity <= 0) {
-    throw new Error('capacity_ml måste vara ett positivt tal');
+    throw new Error('capacity_ml must be a positive number');
   }
 
   if (!Number.isFinite(remaining) || remaining < 0) {
-    throw new Error('remaining_ml får inte vara negativt');
+    throw new Error('remaining_ml must not be negative');
   }
 
   if (remaining > capacity) {
@@ -128,7 +128,7 @@ function updateKeg(kegId, input) {
   const db = getDb();
   const existing = getKeg(kegId);
   if (!existing) {
-    throw new Error('Fatet hittades inte');
+    throw new Error('Keg not found');
   }
 
   const name = input.name != null ? String(input.name).trim() : existing.name;
@@ -146,11 +146,11 @@ function updateKeg(kegId, input) {
   let status = input.status != null ? String(input.status) : existing.status;
 
   if (!Number.isFinite(capacity) || capacity <= 0) {
-    throw new Error('capacity_ml måste vara ett positivt tal');
+    throw new Error('capacity_ml must be a positive number');
   }
 
   if (!Number.isFinite(remaining) || remaining < 0) {
-    throw new Error('remaining_ml får inte vara negativt');
+    throw new Error('remaining_ml must not be negative');
   }
 
   if (remaining > capacity) {
@@ -221,7 +221,7 @@ function assignKegToTap(tapId, input) {
   const db = getDb();
   const tap = getTap(tapId);
   if (!tap) {
-    throw new Error('Kranen hittades inte');
+    throw new Error('Tap not found');
   }
 
   let kegId = input.keg_id != null ? Number(input.keg_id) : null;
@@ -239,12 +239,12 @@ function assignKegToTap(tapId, input) {
   }
 
   if (!kegId) {
-    throw new Error('keg_id eller skapa-payload krävs');
+    throw new Error('keg_id or create payload is required');
   }
 
   const keg = getKeg(kegId);
   if (!keg) {
-    throw new Error('Fatet hittades inte');
+    throw new Error('Keg not found');
   }
 
   const tx = db.transaction(assignKegTx);
@@ -266,7 +266,7 @@ function updateTap(tapId, input) {
   const db = getDb();
   const tap = getTap(tapId);
   if (!tap) {
-    throw new Error('Kranen hittades inte');
+    throw new Error('Tap not found');
   }
 
   const name = input.name != null ? String(input.name).trim() : tap.name;
@@ -275,7 +275,7 @@ function updateTap(tapId, input) {
   const soundFile = input.sound_file !== undefined ? input.sound_file || null : tap.sound_file;
 
   if (!Number.isFinite(pulses) || pulses <= 0) {
-    throw new Error('pulses_per_liter måste vara ett positivt tal');
+    throw new Error('pulses_per_liter must be a positive number');
   }
 
   db.prepare(

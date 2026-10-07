@@ -1,102 +1,102 @@
 # Tap Control
 
-Keezer-övervakning för **Raspberry Pi Zero 2 WH**: räkna pulser från flödessensorer, visa kvarvarande fatvolym på en kioskdisplay, spela ljud när en tappning startar och hantera fat via ett **CMS i LAN** (ingen omdeploy när du byter fat).
+Keezer monitoring for **Raspberry Pi Zero 2 WH**: count pulses from flow sensors, show remaining keg volume on a kiosk display, play a sound when a pour starts, and manage kegs via a **LAN CMS** (no redeploy when you swap kegs).
 
-## Hårdvara
+## Hardware
 
-### Flödessensorer (GREDIA GR-301P2)
+### Flow sensors (GREDIA GR-301P2)
 
-Hall-effekt-pulsmetrar, DC 5–24 V, formel `F = 21 × Q` (L/min) → cirka **1260 pulser/L** före kalibrering.
+Hall-effect pulse meters, DC 5–24 V, formula `F = 21 × Q` (L/min) → about **1260 pulses/L** before calibration.
 
-| Kabel  | Anslut till                       |
-| ------ | --------------------------------- |
-| Röd    | Pi **5V** (delad)                 |
-| Svart  | Pi **GND** (delad)                |
-| Gul    | En GPIO per kran (open-collector) |
+| Wire  | Connect to                        |
+| ----- | --------------------------------- |
+| Red   | Pi **5V** (shared)                |
+| Black | Pi **GND** (shared)               |
+| Yellow| One GPIO per tap (open-collector) |
 
-Standard BCM-pinnar (redigera i [`src/config.js`](src/config.js)):
+Default BCM pins (edit in [`src/config.js`](src/config.js)):
 
-| Kran | BCM |
-| ---- | --- |
-| 1    | 17  |
-| 2    | 27  |
-| 3    | 22  |
+| Tap | BCM |
+| --- | --- |
+| 1   | 17  |
+| 2   | 27  |
+| 3   | 22  |
 
-Aktivera interna pull-ups i mjukvara (redan gjort). Driv **inte** en hård 5V-signal in i GPIO.
+Enable internal pull-ups in software (already done). Do **not** drive a hard 5V signal into a GPIO.
 
-Ingen HAT/ADC behövs. För permanent installation är en skruvplint-GPIO-breakout trevligare än lösa Dupont-kontakter. Placera Pi:n **bakom** keezeren (torrt), inte inne i kylan.
+No HAT/ADC needed. For a permanent install, a screw-terminal GPIO breakout is nicer than loose Dupont wires. Place the Pi **behind** the keezer (dry), not inside the cold space.
 
-### Display & ljud
+### Display & audio
 
-- mini-HDMI → skärm (Chromium-kiosk)
-- Ljud via HDMI-högtalare eller USB-ljudkort (Pi Zero har ingen 3,5 mm-jack)
+- mini-HDMI → screen (Chromium/Epiphany kiosk)
+- Audio via HDMI speakers or a USB sound card (Pi Zero has no 3.5 mm jack)
 
-## Mjukvarustack
+## Software stack
 
 - Node.js 18+
 - SQLite (`better-sqlite3`)
 - Express REST + WebSocket
-- `pigpio` på Pi:n (automatiskt **mock**-läge på Windows/dev eller med `TAP_CONTROL_MOCK=1`)
+- `pigpio` on the Pi (automatic **mock** mode on Windows/dev or with `TAP_CONTROL_MOCK=1`)
 
-## Snabbstart (utvecklings-PC)
+## Quick start (dev PC)
 
 ```bash
-# Skippa native pigpio-build på desktop (valfritt paket):
+# Skip the native pigpio build on desktop (optional package):
 npm install --omit=optional
 npm run dev
 ```
 
-`npm run dev` sätter `TAP_CONTROL_MOCK=1` — ingen pigpio behövs. Även `npm start` auto-mockar utanför Pi (icke-ARM Linux / macOS / Windows).
+`npm run dev` sets `TAP_CONTROL_MOCK=1` — no pigpio needed. `npm start` also auto-mocks off-Pi (non-ARM Linux / macOS / Windows).
 
-Öppna:
+Open:
 
 - Kiosk: http://localhost:3000/
-- CMS: http://localhost:3000/admin — standard-PIN **`1234`**
+- CMS: http://localhost:3000/admin — default PIN **`1234`**
 
-Simulera tappningar utan hårdvara:
+Simulate pours without hardware:
 
 ```bash
 curl -X POST http://localhost:3000/api/debug/pulse/1 -H "Content-Type: application/json" -d "{\"count\":50}"
 ```
 
-## Pi-installation
+## Pi install
 
-1. Flasha Raspberry Pi OS (desktop om du vill ha kiosk-webbläsaren).
-2. I2C/SPI behövs inte; se till att Node 18+ är installerat.
-3. Installera nativa beroenden:
+1. Flash Raspberry Pi OS (desktop if you want the kiosk browser).
+2. I2C/SPI are not required; make sure Node 18+ is installed.
+3. Install native dependencies:
 
 ```bash
 sudo apt update
 sudo apt install -y git build-essential python3 ffmpeg pigpio
 ```
 
-Node-paketet `pigpio` pratar **direkt** med GPIO (kräver root) och får **inte** köra samtidigt som daemonen `pigpiod`. Stäng av den om den är igång:
+The Node `pigpio` package talks to GPIO **directly** (needs root) and must **not** run at the same time as the `pigpiod` daemon. Stop it if it is running:
 
 ```bash
 sudo systemctl stop pigpiod
 sudo systemctl disable pigpiod
 ```
 
-4. Kopiera detta repo till Pi:n (t.ex. `/home/pi/tap_control`) och:
+4. Copy this repo to the Pi (e.g. `/home/pi/tap_control`) and:
 
 ```bash
 cd /home/pi/tap_control
 npm install
-# valfritt: lägg en kort ljudfil i sounds/default.wav
+# optional: put a short sound file at sounds/default.wav
 sudo npm start
 ```
 
-(`sudo` behövs för GPIO. Utan sensorer: `TAP_CONTROL_MOCK=1 npm start`.)
+(`sudo` is needed for GPIO. Without sensors: `TAP_CONTROL_MOCK=1 npm start`.)
 
-5. Systemd (unit-filerna är satta för `/home/antonholst/tap-control` — justera vid behov).
-   Appen kör som root för GPIO; kiosk kör Epiphany som din vanliga användare.
+5. Systemd (unit files assume `/home/antonholst/tap-control` — adjust as needed).
+   The app runs as root for GPIO; the kiosk runs Epiphany as your normal user.
 
 ```bash
-# Se till att pigpiod inte kör (krockar med Node-pigpio)
+# Make sure pigpiod is not running (conflicts with Node pigpio)
 sudo systemctl stop pigpiod
 sudo systemctl disable pigpiod
 
-# Kontrollera Node-sökväg — måste matcha ExecStart i .service
+# Check Node path — must match ExecStart in the .service file
 which node
 
 sudo cp deploy/tap-control.service /etc/systemd/system/
@@ -105,66 +105,66 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now tap-control.service
 sudo systemctl enable --now tap-control-kiosk.service
 
-# Om något failar:
+# If something fails:
 sudo systemctl status tap-control --no-pager
 sudo journalctl -u tap-control -n 40 --no-pager
 ```
 
-Kiosk (Epiphany fullscreen) ska startas via **skrivbordets autostart**, inte system-systemd (systemd hinner ofta före Wayland-sessionen).
+The kiosk (Epiphany fullscreen) should start via **desktop autostart**, not system systemd (systemd often races the Wayland session).
 
 ```bash
 sudo apt install -y epiphany-browser wmctrl xdotool wtype curl
-# Autologin till desktop:
+# Autologin to desktop:
 sudo raspi-config   # System Options → Boot / Auto Login → Desktop
 
 cd ~/tap-control
 chmod +x deploy/install-kiosk-autostart.sh deploy/start-kiosk.sh
 ./deploy/install-kiosk-autostart.sh
-# Testa: ./deploy/start-kiosk.sh
-# Logg: ~/tap-control-kiosk.log
+# Test: ./deploy/start-kiosk.sh
+# Log: ~/tap-control-kiosk.log
 ```
 
-Kiosken döljer taskbaren (`wf-panel-pi`), kör Epiphany i application-mode och sätter labwc-fullscreenregel. UI:t (`?lite=1`) är låst till skärmhöjden så volymmätarna alltid syns.
+The kiosk hides the taskbar (`wf-panel-pi`), runs Epiphany in application mode, and installs a labwc fullscreen rule. The UI (`?lite=1`) is locked to the screen height so the volume meters stay visible.
 
-6. LAN-åtkomst: använd `http://<pi-hostname>.local:3000/admin` (Avahi/mDNS) eller Pi:ns IP. Appen binder `0.0.0.0:3000` som standard.
+6. LAN access: use `http://<pi-hostname>.local:3000/admin` (Avahi/mDNS) or the Pi’s IP. The app binds `0.0.0.0:3000` by default.
 
-Valfritt värdnamn:
+Optional hostname:
 
 ```bash
 sudo hostnamectl set-hostname tap-control
 ```
 
-## CMS (vardagsbruk)
+## CMS (day-to-day use)
 
-På `/admin` kan du:
+At `/admin` you can:
 
-- Byta / koppla fat på varje kran
-- Redigera kvarvarande volym, namn, status
-- Kalibrera pulser/L per kran
-- Ladda upp tappningsljud och sätta standard
-- Byta kiosk/CMS färg- och säsongsteman (svenska säsonger ingår)
-- Se tappningshistorik
-- Byta CMS-PIN
+- Swap / assign kegs on each tap
+- Edit remaining volume, name, status
+- Calibrate pulses/L per tap
+- Upload pour sounds and set the default
+- Change kiosk/CMS color and seasonal themes (Swedish seasons included)
+- View pour history
+- Change the CMS PIN
 
-Allt lagras i SQLite under `data/tap_control.db` — **ingen koddeploy** för att byta fat.
+Everything is stored in SQLite under `data/tap_control.db` — **no code deploy** to swap kegs.
 
-## Kodregler
+## Code style
 
-- Inga nästlade funktionsdefinitioner — endast namngivna funktioner på toppnivå
-- Formatera med Prettier: `npm run format`
-- Håll justerbara värden i [`src/config.js`](src/config.js) eller CMS-inställningar för enkla handändringar
+- No nested function definitions — named top-level functions only
+- Format with Prettier: `npm run format`
+- Keep tunable values in [`src/config.js`](src/config.js) or CMS settings for easy hand edits
 
-## Konfigurationsrattar
+## Configuration knobs
 
-| Env / fil            | Syfte                                |
-| -------------------- | ------------------------------------ |
-| `PORT`               | HTTP-port (standard 3000)            |
-| `HOST`               | Bindadress (standard `0.0.0.0`)      |
-| `TAP_CONTROL_MOCK=1` | Tvinga mock-GPIO (på som standard i `npm run dev`) |
-| `TAP_CONTROL_MOCK=0` | Tvinga riktig pigpio även på icke-Pi |
-| `TAP_CONTROL_DB`     | SQLite-sökväg                        |
-| `src/config.js`      | Standardpinnar, pulser/L, idle ms, PIN |
+| Env / file           | Purpose                                       |
+| -------------------- | --------------------------------------------- |
+| `PORT`               | HTTP port (default 3000)                      |
+| `HOST`               | Bind address (default `0.0.0.0`)              |
+| `TAP_CONTROL_MOCK=1` | Force mock GPIO (default in `npm run dev`)    |
+| `TAP_CONTROL_MOCK=0` | Force real pigpio even off-Pi                 |
+| `TAP_CONTROL_DB`     | SQLite path                                   |
+| `src/config.js`      | Default pins, pulses/L, idle ms, PIN          |
 
-## Projektstruktur
+## Project layout
 
-Se `src/` för serverkod, `public/` för kiosk + CMS, `deploy/` för systemd-units.
+See `src/` for server code, `public/` for kiosk + CMS, `deploy/` for systemd units.

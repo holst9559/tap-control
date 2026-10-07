@@ -191,16 +191,16 @@ function startCalibration(tapId) {
 function finishCalibration(tapId, knownVolumeMl) {
   const session = calibrationSessions.get(tapId);
   if (!session) {
-    throw new Error('Ingen kalibreringssession för den här kranen');
+    throw new Error('No calibration session for this tap');
   }
 
   const volumeMl = Number(knownVolumeMl);
   if (!Number.isFinite(volumeMl) || volumeMl <= 0) {
-    throw new Error('known_volume_ml måste vara ett positivt tal');
+    throw new Error('known_volume_ml must be a positive number');
   }
 
   if (session.pulseCount <= 0) {
-    throw new Error('Inga pulser registrerade under kalibreringen');
+    throw new Error('No pulses recorded during calibration');
   }
 
   const pulsesPerLiter = session.pulseCount / (volumeMl / 1000);

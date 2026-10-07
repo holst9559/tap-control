@@ -80,7 +80,7 @@ function getTokenFromRequest(req) {
 function requireAuth(req, res, next) {
   const token = getTokenFromRequest(req);
   if (!isValidToken(token)) {
-    res.status(401).json({ error: 'Ej behörig' });
+    res.status(401).json({ error: 'Unauthorized' });
     return;
   }
 
@@ -91,11 +91,11 @@ function requireAuth(req, res, next) {
 function changePin(currentPin, newPin) {
   const expected = getSetting('cms_pin_hash');
   if (hashPin(currentPin) !== expected) {
-    throw new Error('Nuvarande PIN är felaktig');
+    throw new Error('Current PIN is incorrect');
   }
 
   if (!newPin || String(newPin).length < 4) {
-    throw new Error('Ny PIN måste vara minst 4 tecken');
+    throw new Error('New PIN must be at least 4 characters');
   }
 
   setSetting('cms_pin_hash', hashPin(newPin));

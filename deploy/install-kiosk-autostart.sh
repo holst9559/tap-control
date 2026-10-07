@@ -30,9 +30,13 @@ echo "== Remove XDG kiosk desktop (labwc-only launcher) =="
 rm -f "$AUTOSTART_DIR"/tap-control*.desktop
 echo "Removed $AUTOSTART_DIR/tap-control*.desktop (if any)"
 
-if ! command -v wtype >/dev/null 2>&1; then
-  echo "Installing wtype (needed to trigger labwc HideCursor)..."
-  sudo apt-get install -y wtype
+echo "== Cursor-hide tools =="
+LABWC_VER="$(labwc -v 2>/dev/null || labwc --version 2>/dev/null || echo unknown)"
+echo "labwc version: $LABWC_VER"
+# wtype: HideCursor keybind on 0.8.4+; wlrctl: nudge pointer so CSS cursor:none applies on older labwc
+sudo apt-get install -y wtype wlrctl 2>/dev/null || sudo apt-get install -y wtype || true
+if ! command -v wlrctl >/dev/null 2>&1; then
+  echo "note: wlrctl not in apt — on labwc < 0.8.4 cursor hide may need an OS/labwc upgrade"
 fi
 
 echo "== labwc autostart: kiosk + hide cursor =="
@@ -117,13 +121,16 @@ else
 fi
 
 echo
-echo "labwc version (HideCursor needs 0.8.4+):"
-labwc -v 2>/dev/null || labwc --version 2>/dev/null || echo "(could not read version)"
-echo
 echo "Verify:"
 echo "  cat ~/.config/labwc/autostart"
 echo "  grep -A6 HideCursor ~/.config/labwc/rc.xml"
 echo
-echo "Manual test now (if already in a labwc session):"
-echo "  wtype -M alt -M logo -P h -m logo -m alt"
+if echo "$LABWC_VER" | grep -qE '0\.8\.[0-3]|0\.[0-7]\.'; then
+  echo "Your labwc ($LABWC_VER) is older than 0.8.4 — HideCursor is NOT available."
+  echo "start-kiosk.sh will nudge the pointer with wlrctl so CSS can hide it."
+  echo "For a proper compositor hide, upgrade when possible:"
+  echo "  sudo apt update && apt-cache policy labwc"
+  echo "  sudo apt install -y labwc   # if a newer package exists"
+fi
+echo
 echo "Then reboot."

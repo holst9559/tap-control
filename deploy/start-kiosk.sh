@@ -148,16 +148,35 @@ fi
 hide_desktop_chrome
 try_fullscreen &
 
-# labwc 0.8.4+: Alt+Super+h → HideCursor (bound in install-kiosk-autostart.sh)
-(
-  sleep 8
+hide_cursor() {
+  # 1) labwc 0.8.4+: HideCursor keybind (no-op on 0.8.1)
   if command -v wtype >/dev/null 2>&1; then
     wtype -M alt -M logo -P h -m logo -m alt 2>/dev/null \
-      && echo "hid cursor via labwc HideCursor (wtype A-W-h)" \
-      || echo "warning: wtype HideCursor keybind failed"
-  else
-    echo "warning: wtype not installed — cursor may stay visible"
+      && echo "sent labwc HideCursor keybind (A-W-h)" \
+      || true
   fi
+
+  # 2) Nudge pointer over the kiosk window so CSS cursor:none applies.
+  #    Needed on labwc < 0.8.4 where HideCursor does not exist — without a
+  #    move event the compositor keeps showing the default arrow after boot.
+  if command -v wlrctl >/dev/null 2>&1; then
+    wlrctl pointer move 120 120 2>/dev/null \
+      && echo "nudged pointer via wlrctl (CSS cursor:none)" \
+      && return 0
+  fi
+  if command -v ydotool >/dev/null 2>&1; then
+    ydotool mousemove -a 120 120 2>/dev/null \
+      && echo "nudged pointer via ydotool (CSS cursor:none)" \
+      && return 0
+  fi
+  echo "warning: no pointer nudge tool (install wlrctl). labwc $(labwc -v 2>/dev/null || echo '?') — HideCursor needs 0.8.4+"
+}
+
+(
+  sleep 6
+  hide_cursor
+  sleep 8
+  hide_cursor
 ) &
 
 wait "$EPID"

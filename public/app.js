@@ -164,9 +164,9 @@ function createTapCard(tap) {
   bar.appendChild(fill);
   stats.appendChild(left);
   stats.appendChild(right);
+  meter.appendChild(emptyMsg);
   meter.appendChild(bar);
   meter.appendChild(stats);
-  meter.appendChild(emptyMsg);
 
   card.appendChild(head);
   card.appendChild(history);
@@ -201,7 +201,7 @@ function updateTapCard(card, tap) {
     emptyMsg.textContent = emptyKegLine(tap);
     fill.className = 'meter-fill meter-fill--empty';
     fill.style.width = '100%';
-    card.querySelector('.meter-left').textContent = 'Tomt';
+    card.querySelector('.meter-left').textContent = formatLiters(0);
     card.querySelector('.meter-right').textContent = '0%';
     return;
   }

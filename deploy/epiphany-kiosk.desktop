@@ -1,9 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Tap Control
-Comment=Keezer kiosk web app for Epiphany --application-mode
-Exec=epiphany http://localhost:3000/
-Icon=web-browser
-StartupNotify=true
-Terminal=false
-Categories=Network;WebBrowser;

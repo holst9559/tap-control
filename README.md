@@ -110,21 +110,20 @@ sudo systemctl status tap-control --no-pager
 sudo journalctl -u tap-control -n 40 --no-pager
 ```
 
-The kiosk (Epiphany fullscreen) should start via **desktop autostart**, not system systemd (systemd often races the Wayland session).
+Kiosk (Epiphany fullscreen on **X11**): system systemd waits for the display, then `start-kiosk.sh` hides the panel and fullscreenes the browser. Cursor hide is via `unclutter`.
 
 ```bash
-sudo apt install -y epiphany-browser wmctrl xdotool wtype curl
-# Autologin to desktop:
-sudo raspi-config   # System Options → Boot / Auto Login → Desktop
+# Prefer X11 (Advanced Options → Wayland → X11) and desktop autologin:
+sudo raspi-config
 
 cd ~/tap-control
 chmod +x deploy/install-kiosk-autostart.sh deploy/start-kiosk.sh
 ./deploy/install-kiosk-autostart.sh
-# Test: ./deploy/start-kiosk.sh
 # Log: ~/tap-control-kiosk.log
+# Status: sudo systemctl status tap-control-kiosk.service --no-pager
 ```
 
-The kiosk hides the taskbar (`wf-panel-pi`), starts Epiphany fullscreen, and installs a labwc fullscreen rule. The UI uses the normal themed layout (viewport-locked so meters stay visible).
+The UI uses the normal themed layout (viewport-locked so meters stay visible).
 
 6. LAN access: use `http://<pi-hostname>.local:3000/admin` (Avahi/mDNS) or the Pi’s IP. The app binds `0.0.0.0:3000` by default.
 

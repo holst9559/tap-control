@@ -1,9 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Tap Control Kiosk
-Comment=Unused when system unit is enabled — see install-kiosk-autostart.sh
-Exec=/bin/bash /home/antonholst/tap-control/deploy/start-kiosk.sh
-X-GNOME-Autostart-enabled=false
-StartupNotify=false
-Terminal=false
-Hidden=true

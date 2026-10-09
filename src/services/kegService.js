@@ -370,12 +370,37 @@ function listRecentPoursForTap(tapId, limit) {
     .all(tapId, max);
 }
 
+function pourSummary24hForTap(tapId) {
+  const db = getDb();
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const row = db
+    .prepare(
+      `
+    SELECT
+      COUNT(*) AS pour_count,
+      COALESCE(SUM(volume_ml), 0) AS total_volume_ml,
+      COALESCE(AVG(volume_ml), 0) AS avg_volume_ml
+    FROM pours
+    WHERE tap_id = ?
+      AND started_at >= ?
+  `,
+    )
+    .get(tapId, since);
+
+  return {
+    pour_count: Number(row.pour_count) || 0,
+    total_volume_ml: Number(row.total_volume_ml) || 0,
+    avg_volume_ml: Number(row.avg_volume_ml) || 0,
+  };
+}
+
 function attachRecentPours(taps) {
   const result = [];
   for (const tap of taps) {
     result.push({
       ...tap,
       recent_pours: listRecentPoursForTap(tap.id, 8),
+      pour_summary_24h: pourSummary24hForTap(tap.id),
     });
   }
   return result;

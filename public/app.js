@@ -85,7 +85,7 @@ function fillPourHistoryList(list, pours) {
   if (!pours || pours.length === 0) {
     const empty = document.createElement('li');
     empty.className = 'pour-history-empty';
-    empty.textContent = 'Inga tappningar ännu';
+    empty.textContent = 'Inga upphällningar ännu';
     list.appendChild(empty);
     return;
   }
@@ -108,11 +108,45 @@ function fillPourHistoryList(list, pours) {
   });
 }
 
+function summaryKey(summary) {
+  if (!summary) {
+    return '';
+  }
+  return `${summary.pour_count}:${summary.total_volume_ml}:${summary.avg_volume_ml}`;
+}
+
+function fillPourSummary(el, summary) {
+  const count = summary && summary.pour_count != null ? Number(summary.pour_count) : 0;
+  const total = summary && summary.total_volume_ml != null ? Number(summary.total_volume_ml) : 0;
+  const avg = summary && summary.avg_volume_ml != null ? Number(summary.avg_volume_ml) : 0;
+
+  el.querySelector('.pour-summary-count').textContent = String(count);
+  el.querySelector('.pour-summary-volume').textContent = formatPourVolume(total);
+  el.querySelector('.pour-summary-avg').textContent = count > 0 ? formatPourVolume(avg) : '—';
+}
+
+function createSummaryStat(label, valueClass) {
+  const stat = document.createElement('div');
+  stat.className = 'pour-summary-stat';
+
+  const value = document.createElement('span');
+  value.className = `pour-summary-value ${valueClass}`;
+
+  const caption = document.createElement('span');
+  caption.className = 'pour-summary-label';
+  caption.textContent = label;
+
+  stat.appendChild(value);
+  stat.appendChild(caption);
+  return stat;
+}
+
 function createTapCard(tap) {
   const card = document.createElement('article');
   card.className = 'tap-card';
   card.dataset.tapId = String(tap.id);
   card.dataset.historyKey = '';
+  card.dataset.summaryKey = '';
 
   const head = document.createElement('div');
   head.className = 'tap-head';
@@ -126,12 +160,18 @@ function createTapCard(tap) {
   head.appendChild(label);
   head.appendChild(beer);
 
+  const summary = document.createElement('div');
+  summary.className = 'pour-summary';
+  summary.appendChild(createSummaryStat('Antal upphällningar', 'pour-summary-count'));
+  summary.appendChild(createSummaryStat('Volym', 'pour-summary-volume'));
+  summary.appendChild(createSummaryStat('Snittvolym', 'pour-summary-avg'));
+
   const history = document.createElement('div');
   history.className = 'pour-history';
 
   const historyTitle = document.createElement('div');
   historyTitle.className = 'pour-history-title';
-  historyTitle.textContent = 'Senaste tappningar';
+  historyTitle.textContent = 'Senaste upphällningar';
 
   const historyList = document.createElement('ul');
   historyList.className = 'pour-history-list';
@@ -169,6 +209,7 @@ function createTapCard(tap) {
   meter.appendChild(stats);
 
   card.appendChild(head);
+  card.appendChild(summary);
   card.appendChild(history);
   card.appendChild(meter);
 
@@ -181,10 +222,16 @@ function updateTapCard(card, tap) {
   const low = pct <= 15;
   const empty = isKegCounterEmpty(tap);
   const historyKey = pourHistoryKey(tap.recent_pours);
+  const nextSummaryKey = summaryKey(tap.pour_summary_24h);
 
   card.className = 'tap-card' + (pouring ? ' pouring' : '') + (empty ? ' tap-empty' : '');
   card.querySelector('.tap-label').textContent = tap.name;
   card.querySelector('.beer-name').textContent = tap.keg_name || 'Inget fat';
+
+  if (card.dataset.summaryKey !== nextSummaryKey) {
+    fillPourSummary(card.querySelector('.pour-summary'), tap.pour_summary_24h);
+    card.dataset.summaryKey = nextSummaryKey;
+  }
 
   if (card.dataset.historyKey !== historyKey) {
     fillPourHistoryList(card.querySelector('.pour-history-list'), tap.recent_pours || []);
@@ -289,7 +336,7 @@ function onPourUpdate(payload) {
 function onPourEnd(payload) {
   pouringTapIds.delete(payload.tapId);
   const liters = formatLiters(payload.volumeMl);
-  lastPourEl.textContent = `Senaste tappning · Kran ${payload.tapId} · ${liters}`;
+  lastPourEl.textContent = `Senaste upphällning · Kran ${payload.tapId} · ${liters}`;
 }
 
 function handleWsMessage(event) {

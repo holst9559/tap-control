@@ -115,13 +115,48 @@ body::before {
   line-clamp: 2;
 }
 
+.pour-summary {
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin-top: 0.15rem;
+}
+
+.pour-summary-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.pour-summary-value {
+  font-size: clamp(1.15rem, 1.8vw, 1.55rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--foam);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pour-summary-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  line-height: 1.25;
+}
+
 .pour-history {
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
   flex: 1 1 auto;
   min-height: 0;
-  margin-top: 0.35rem;
+  margin-top: 0.15rem;
   padding: 0.9rem 0 0.5rem;
   border-top: 1px solid color-mix(in srgb, var(--muted) 28%, transparent);
   overflow: hidden;

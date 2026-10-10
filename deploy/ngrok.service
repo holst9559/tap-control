@@ -1,0 +1,15 @@
+[Unit]
+Description=ngrok tunnel (Tap Control public kiosk)
+After=network-online.target tap-control.service
+Wants=network-online.target
+Wants=tap-control.service
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/local/bin/ngrok start --all --config /etc/ngrok/ngrok.yml
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

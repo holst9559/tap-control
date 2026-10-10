@@ -8,11 +8,11 @@ Keezer monitoring for **Raspberry Pi Zero 2 WH**: count pulses from flow sensors
 
 Hall-effect pulse meters, DC 5–24 V, formula `F = 21 × Q` (L/min) → about **1260 pulses/L** before calibration.
 
-| Wire  | Connect to                        |
-| ----- | --------------------------------- |
-| Red   | Pi **5V** (shared)                |
-| Black | Pi **GND** (shared)               |
-| Yellow| One GPIO per tap (open-collector) |
+| Wire   | Connect to                        |
+| ------ | --------------------------------- |
+| Red    | Pi **5V** (shared)                |
+| Black  | Pi **GND** (shared)               |
+| Yellow | One GPIO per tap (open-collector) |
 
 Default BCM pins (edit in [`src/config.js`](src/config.js)):
 
@@ -133,6 +133,49 @@ Optional hostname:
 sudo hostnamectl set-hostname tap-control
 ```
 
+## Public landing page (ngrok)
+
+The Pi stays on your LAN. **ngrok** publishes only the kiosk landing page (`/`) so guests outside your network can watch keg levels. **`/admin` is not exposed** — the CMS stays at `http://<pi-hostname>.local:3000/admin`.
+
+Defense in depth:
+
+1. ngrok Traffic Policy denies paths under `/admin`
+2. The Node app rejects `/admin` and non-public APIs when the request Host looks like ngrok (or matches `TAP_CONTROL_PUBLIC_HOSTS`) — see [`src/api/publicEdge.js`](src/api/publicEdge.js). Public edge allows `GET /`, static kiosk assets, `GET /api/status`, `GET /api/settings`, and `/ws`.
+
+### One-time setup on the Pi
+
+1. Create a free account at [ngrok.com](https://ngrok.com) and copy your Authtoken from the dashboard.
+2. With `tap-control.service` already running:
+
+```bash
+cd ~/tap-control
+git pull
+chmod +x deploy/install-ngrok.sh
+./deploy/install-ngrok.sh <NGROK_AUTHTOKEN>
+# Optional reserved domain (paid / static hostname):
+# ./deploy/install-ngrok.sh <NGROK_AUTHTOKEN> keezer.ngrok-free.app
+```
+
+The script installs the ngrok agent, writes `/etc/ngrok/ngrok.yml`, and enables `ngrok.service`.
+
+3. Find the public URL in the [ngrok endpoints dashboard](https://dashboard.ngrok.com/endpoints) (free plan assigns a random `*.ngrok-free.app` hostname; it can change if you recreate the endpoint).
+
+4. Check:
+
+```bash
+PUBLIC=https://YOUR-SUBDOMAIN.ngrok-free.app
+curl -sI -H 'ngrok-skip-browser-warning: 1' "$PUBLIC/" | head -n1          # 200
+curl -sI -H 'ngrok-skip-browser-warning: 1' "$PUBLIC/admin" | head -n1     # 404
+# CMS still on LAN only:
+curl -sI http://$(hostname).local:3000/admin | head -n1                    # 200
+```
+
+Browsers on the free plan may show ngrok’s interstitial once; that is normal.
+
+Manual config template: [`deploy/ngrok/config.example.yml`](deploy/ngrok/config.example.yml). Systemd unit: [`deploy/ngrok.service`](deploy/ngrok.service).
+
+No port forwarding on your router is required.
+
 ## CMS (day-to-day use)
 
 At `/admin` you can:
@@ -155,14 +198,15 @@ Everything is stored in SQLite under `data/tap_control.db` — **no code deploy*
 
 ## Configuration knobs
 
-| Env / file           | Purpose                                       |
-| -------------------- | --------------------------------------------- |
-| `PORT`               | HTTP port (default 3000)                      |
-| `HOST`               | Bind address (default `0.0.0.0`)              |
-| `TAP_CONTROL_MOCK=1` | Force mock GPIO (default in `npm run dev`)    |
-| `TAP_CONTROL_MOCK=0` | Force real pigpio even off-Pi                 |
-| `TAP_CONTROL_DB`     | SQLite path                                   |
-| `src/config.js`      | Default pins, pulses/L, idle ms, PIN          |
+| Env / file                 | Purpose                                                 |
+| -------------------------- | ------------------------------------------------------- |
+| `PORT`                     | HTTP port (default 3000)                                |
+| `HOST`                     | Bind address (default `0.0.0.0`)                        |
+| `TAP_CONTROL_MOCK=1`       | Force mock GPIO (default in `npm run dev`)              |
+| `TAP_CONTROL_MOCK=0`       | Force real pigpio even off-Pi                           |
+| `TAP_CONTROL_DB`           | SQLite path                                             |
+| `TAP_CONTROL_PUBLIC_HOSTS` | Extra public hostnames (comma-separated) for edge guard |
+| `src/config.js`            | Default pins, pulses/L, idle ms, PIN                    |
 
 ## Project layout
 

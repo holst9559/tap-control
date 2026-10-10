@@ -5,6 +5,7 @@ const { WebSocketServer } = require('ws');
 const config = require('./config');
 const { openDatabase } = require('./db/client');
 const { createRouter, getStatusPayload } = require('./api/routes');
+const { publicEdgeGuard } = require('./api/publicEdge');
 const kegService = require('./services/kegService');
 const pourService = require('./services/pourService');
 const pulseMeter = require('./gpio/pulseMeter');
@@ -45,6 +46,9 @@ function startServer() {
   const app = express();
   app.use(express.json());
   app.use(express.urlencoded({ extended: false }));
+
+  // Cloudflare Tunnel adds Cf-Ray; block CMS + private APIs on that edge.
+  app.use(publicEdgeGuard);
 
   app.use('/api', createRouter());
   app.use(express.static(config.publicDir));

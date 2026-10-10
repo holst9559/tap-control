@@ -8,11 +8,11 @@ Keezer monitoring for **Raspberry Pi Zero 2 WH**: count pulses from flow sensors
 
 Hall-effect pulse meters, DC 5–24 V, formula `F = 21 × Q` (L/min) → about **1260 pulses/L** before calibration.
 
-| Wire  | Connect to                        |
-| ----- | --------------------------------- |
-| Red   | Pi **5V** (shared)                |
-| Black | Pi **GND** (shared)               |
-| Yellow| One GPIO per tap (open-collector) |
+| Wire   | Connect to                        |
+| ------ | --------------------------------- |
+| Red    | Pi **5V** (shared)                |
+| Black  | Pi **GND** (shared)               |
+| Yellow | One GPIO per tap (open-collector) |
 
 Default BCM pins (edit in [`src/config.js`](src/config.js)):
 
@@ -133,6 +133,42 @@ Optional hostname:
 sudo hostnamectl set-hostname tap-control
 ```
 
+## Public landing page (Cloudflare Tunnel)
+
+The Pi stays on your LAN. A **Cloudflare Tunnel** publishes only the kiosk landing page (`/`) so guests outside your network can watch keg levels. **`/admin` is not exposed** — the CMS stays at `http://<pi-hostname>.local:3000/admin`.
+
+Defense in depth:
+
+1. `cloudflared` ingress returns 404 for `/admin`
+2. The Node app rejects `/admin` and non-public APIs when the request carries a Cloudflare `Cf-Ray` header (see [`src/api/publicEdge.js`](src/api/publicEdge.js)). Public edge allows `GET /`, static kiosk assets, `GET /api/status`, `GET /api/settings`, and `/ws`.
+
+### One-time setup on the Pi
+
+1. Put a domain on Cloudflare DNS (free plan is enough).
+2. With `tap-control.service` already running:
+
+```bash
+cd ~/tap-control
+git pull
+chmod +x deploy/install-cloudflared.sh
+./deploy/install-cloudflared.sh keezer.example.com   # your hostname
+```
+
+The script installs `cloudflared`, creates a tunnel named `tap-control`, writes `/etc/cloudflared/config.yml`, adds a DNS CNAME, and enables `cloudflared.service`.
+
+3. Check:
+
+```bash
+curl -sI https://keezer.example.com/ | head -n1          # 200
+curl -sI https://keezer.example.com/admin | head -n1     # 404
+# CMS still on LAN only:
+curl -sI http://$(hostname).local:3000/admin | head -n1  # 200
+```
+
+Manual config template: [`deploy/cloudflared/config.example.yml`](deploy/cloudflared/config.example.yml). Systemd unit: [`deploy/cloudflared.service`](deploy/cloudflared.service).
+
+No port forwarding on your router is required.
+
 ## CMS (day-to-day use)
 
 At `/admin` you can:
@@ -155,14 +191,14 @@ Everything is stored in SQLite under `data/tap_control.db` — **no code deploy*
 
 ## Configuration knobs
 
-| Env / file           | Purpose                                       |
-| -------------------- | --------------------------------------------- |
-| `PORT`               | HTTP port (default 3000)                      |
-| `HOST`               | Bind address (default `0.0.0.0`)              |
-| `TAP_CONTROL_MOCK=1` | Force mock GPIO (default in `npm run dev`)    |
-| `TAP_CONTROL_MOCK=0` | Force real pigpio even off-Pi                 |
-| `TAP_CONTROL_DB`     | SQLite path                                   |
-| `src/config.js`      | Default pins, pulses/L, idle ms, PIN          |
+| Env / file           | Purpose                                    |
+| -------------------- | ------------------------------------------ |
+| `PORT`               | HTTP port (default 3000)                   |
+| `HOST`               | Bind address (default `0.0.0.0`)           |
+| `TAP_CONTROL_MOCK=1` | Force mock GPIO (default in `npm run dev`) |
+| `TAP_CONTROL_MOCK=0` | Force real pigpio even off-Pi              |
+| `TAP_CONTROL_DB`     | SQLite path                                |
+| `src/config.js`      | Default pins, pulses/L, idle ms, PIN       |
 
 ## Project layout
 

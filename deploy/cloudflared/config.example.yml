@@ -1,0 +1,21 @@
+# Cloudflare Tunnel — public kiosk only.
+# Copy to /etc/cloudflared/config.yml and fill in TUNNEL_ID + hostname.
+#
+# The CMS at /admin is rejected here and again in the Node app (src/api/publicEdge.js).
+# Use the Pi on the LAN for admin: http://<pi-hostname>.local:3000/admin
+
+tunnel: TUNNEL_ID
+credentials-file: /etc/cloudflared/TUNNEL_ID.json
+
+ingress:
+  # Never expose the LAN CMS on the public hostname.
+  - hostname: keezer.example.com
+    path: ^/admin(/.*)?$
+    service: http_status:404
+
+  # Landing / kiosk (+ /api/status, /api/settings, /ws, static assets).
+  - hostname: keezer.example.com
+    service: http://127.0.0.1:3000
+
+  # Required catch-all.
+  - service: http_status:404

@@ -1,0 +1,17 @@
+[Unit]
+Description=Cloudflare Tunnel (Tap Control public kiosk)
+After=network-online.target tap-control.service
+Wants=network-online.target
+Wants=tap-control.service
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/local/bin/cloudflared tunnel --config /etc/cloudflared/config.yml run
+Restart=on-failure
+RestartSec=5
+# Avoid cloudflared auto-updating under systemd without your control.
+Environment=NO_AUTOUPDATE=true
+
+[Install]
+WantedBy=multi-user.target

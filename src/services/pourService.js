@@ -42,47 +42,50 @@ function clearIdleTimer(tapId) {
   }
 }
 
-function openPour(tapId, options) {
-  const db = getDb();
+function createPendingPour(tapId) {
   const tap = kegService.getTap(tapId);
   if (!tap) {
     return null;
   }
 
-  const startedAt =
-    options && options.startedAt ? options.startedAt : new Date().toISOString();
-  const result = db
-    .prepare(
-      `
-    INSERT INTO pours (tap_id, keg_id, started_at, ended_at, volume_ml, pulse_count)
-    VALUES (?, ?, ?, NULL, 0, 0)
-  `,
-    )
-    .run(tapId, tap.keg_id, startedAt);
-
-  const pour = {
-    id: result.lastInsertRowid,
+  return {
     tapId,
     kegId: tap.keg_id,
-    startedAt,
+    startedAt: new Date().toISOString(),
     pulseCount: 0,
     volumeMl: 0,
     pulsesPerLiter: tap.pulses_per_liter,
     lastReportedVolumeMl: 0,
+    id: null,
   };
+}
 
-  activePours.set(tapId, pour);
-  soundService.playPourSound(tapId);
+// Persist + notify once volume clears the minimum. Keep this path light:
+// a full status broadcast here (mid-pour) blocks the event loop on Pi and
+// pigpio drops pulses — which is how a 350ml pour became ~11ml.
+function commitPour(pour) {
+  const db = getDb();
+  const result = db
+    .prepare(
+      `
+    INSERT INTO pours (tap_id, keg_id, started_at, ended_at, volume_ml, pulse_count)
+    VALUES (?, ?, ?, NULL, ?, ?)
+  `,
+    )
+    .run(pour.tapId, pour.kegId, pour.startedAt, pour.volumeMl, pour.pulseCount);
+
+  pour.id = result.lastInsertRowid;
+  activePours.set(pour.tapId, pour);
+  pendingPours.delete(pour.tapId);
+
+  soundService.playPourSound(pour.tapId);
 
   hub.broadcast('pour_start', {
-    tapId,
+    tapId: pour.tapId,
     pourId: pour.id,
     kegId: pour.kegId,
-    startedAt,
+    startedAt: pour.startedAt,
   });
-
-  hub.broadcast('status', kegService.getStatus());
-  return pour;
 }
 
 function updateActivePour(tapId) {
@@ -195,36 +198,24 @@ function handlePulse(tapId) {
     return;
   }
 
-  const tap = kegService.getTap(tapId);
-  if (!tap) {
-    return;
-  }
-
   let pending = pendingPours.get(tapId);
   if (!pending) {
-    pending = {
-      pulseCount: 0,
-      pulsesPerLiter: tap.pulses_per_liter,
-      startedAt: new Date().toISOString(),
-    };
+    pending = createPendingPour(tapId);
+    if (!pending) {
+      return;
+    }
     pendingPours.set(tapId, pending);
   }
 
   pending.pulseCount += 1;
-  const volumeMl = pulsesToMl(pending.pulseCount, pending.pulsesPerLiter);
+  pending.volumeMl = pulsesToMl(pending.pulseCount, pending.pulsesPerLiter);
 
-  if (volumeMl < getMinPourMl()) {
+  if (pending.volumeMl < getMinPourMl()) {
     scheduleIdleEnd(tapId);
     return;
   }
 
-  pendingPours.delete(tapId);
-  pour = openPour(tapId, { startedAt: pending.startedAt });
-  if (!pour) {
-    return;
-  }
-
-  pour.pulseCount = pending.pulseCount;
+  commitPour(pending);
   updateActivePour(tapId);
   scheduleIdleEnd(tapId);
 }

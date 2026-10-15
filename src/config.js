@@ -36,6 +36,9 @@ const config = {
   // End a pour after this many ms with no pulses
   defaultPourIdleMs: 2500,
 
+  // Ignore flow-sensor noise (e.g. CO2 equilibrium blips) below this volume
+  defaultMinPourMl: 10,
+
   // Default CMS PIN (change via CMS / settings after first login)
   defaultCmsPin: '1234',
 

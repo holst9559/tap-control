@@ -1,9 +1,11 @@
+const config = require('../config');
 const { getDb, getSetting } = require('../db/client');
 const kegService = require('./kegService');
 const soundService = require('./soundService');
 const hub = require('../ws/hub');
 
 const activePours = new Map();
+const pendingPours = new Map();
 const idleTimers = new Map();
 const calibrationSessions = new Map();
 
@@ -11,7 +13,16 @@ function getPourIdleMs() {
   const raw = getSetting('pour_idle_ms');
   const value = Number(raw);
   if (!Number.isFinite(value) || value < 500) {
-    return 2500;
+    return config.defaultPourIdleMs;
+  }
+  return value;
+}
+
+function getMinPourMl() {
+  const raw = getSetting('min_pour_ml');
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value < 0) {
+    return config.defaultMinPourMl;
   }
   return value;
 }
@@ -31,14 +42,15 @@ function clearIdleTimer(tapId) {
   }
 }
 
-function openPour(tapId) {
+function openPour(tapId, options) {
   const db = getDb();
   const tap = kegService.getTap(tapId);
   if (!tap) {
     return null;
   }
 
-  const startedAt = new Date().toISOString();
+  const startedAt =
+    options && options.startedAt ? options.startedAt : new Date().toISOString();
   const result = db
     .prepare(
       `
@@ -144,7 +156,17 @@ function endPour(tapId) {
   return pour;
 }
 
+function discardPending(tapId) {
+  pendingPours.delete(tapId);
+  clearIdleTimer(tapId);
+}
+
 function onIdleTimeout(tapId) {
+  if (pendingPours.has(tapId)) {
+    // CO2 / equilibrium blips never reached the minimum pour volume
+    discardPending(tapId);
+    return;
+  }
   endPour(tapId);
 }
 
@@ -166,14 +188,43 @@ function handlePulse(tapId) {
   }
 
   let pour = activePours.get(tapId);
-  if (!pour) {
-    pour = openPour(tapId);
-    if (!pour) {
-      return;
-    }
+  if (pour) {
+    pour.pulseCount += 1;
+    updateActivePour(tapId);
+    scheduleIdleEnd(tapId);
+    return;
   }
 
-  pour.pulseCount += 1;
+  const tap = kegService.getTap(tapId);
+  if (!tap) {
+    return;
+  }
+
+  let pending = pendingPours.get(tapId);
+  if (!pending) {
+    pending = {
+      pulseCount: 0,
+      pulsesPerLiter: tap.pulses_per_liter,
+      startedAt: new Date().toISOString(),
+    };
+    pendingPours.set(tapId, pending);
+  }
+
+  pending.pulseCount += 1;
+  const volumeMl = pulsesToMl(pending.pulseCount, pending.pulsesPerLiter);
+
+  if (volumeMl < getMinPourMl()) {
+    scheduleIdleEnd(tapId);
+    return;
+  }
+
+  pendingPours.delete(tapId);
+  pour = openPour(tapId, { startedAt: pending.startedAt });
+  if (!pour) {
+    return;
+  }
+
+  pour.pulseCount = pending.pulseCount;
   updateActivePour(tapId);
   scheduleIdleEnd(tapId);
 }

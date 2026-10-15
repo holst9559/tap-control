@@ -43,6 +43,10 @@ function seedDefaults() {
     setSetting('pour_idle_ms', String(config.defaultPourIdleMs));
   }
 
+  if (!getSetting('min_pour_ml')) {
+    setSetting('min_pour_ml', String(config.defaultMinPourMl));
+  }
+
   if (!getSetting('default_sound_file')) {
     setSetting('default_sound_file', 'default.wav');
   }

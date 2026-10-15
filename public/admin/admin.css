@@ -177,3 +177,43 @@ th {
   margin: 0.35rem 0 0;
   font-size: 0.85rem;
 }
+
+@media (max-width: 640px) {
+  body {
+    padding: 0.85rem;
+  }
+
+  .panel {
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .login-panel {
+    margin: 6vh auto;
+  }
+
+  .topbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .topbar button {
+    align-self: flex-start;
+  }
+
+  .form-grid,
+  .cal-row {
+    grid-template-columns: 1fr;
+  }
+
+  .tap-grid {
+    grid-template-columns: 1fr;
+  }
+
+  th,
+  td {
+    padding: 0.45rem 0.3rem;
+    font-size: 0.88rem;
+  }
+}

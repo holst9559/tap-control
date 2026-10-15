@@ -47,10 +47,8 @@ function percentRemaining(tap) {
 
 /** Shown when the counter hits 0 — there may still be beer in the lines. */
 const EMPTY_KEG_LINES = [
-  'Inte många droppar kvar nu',
   'Meddela närmsta servicetekniker',
-  'Nu vart det slut',
-  'Fatet säger nej. Röret säger kanske.',
+  'Nej! Där blir det nej. Där blir det bestämt nej, fatet säger nej.',
   'Servicetekniker till baren, tack',
   'Ring bryggmästaren — vi är på reserv',
 ];

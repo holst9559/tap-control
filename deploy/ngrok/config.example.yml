@@ -14,7 +14,7 @@ agent:
 
 endpoints:
   - name: tap-control
-    url: https://axvalls-olstuga.ngrok-free.app
+    url: https://axvalls-olstuga.ngrok.app
     upstream:
       url: http://127.0.0.1:3000
     traffic_policy:

@@ -45,6 +45,7 @@ const calStatus = document.getElementById('cal-status');
 const settingsForm = document.getElementById('settings-form');
 const defaultSound = document.getElementById('default-sound');
 const pourIdle = document.getElementById('pour-idle');
+const minPourMl = document.getElementById('min-pour-ml');
 const displayUnits = document.getElementById('display-units');
 const testSoundBtn = document.getElementById('test-sound');
 const uploadForm = document.getElementById('upload-form');
@@ -320,6 +321,7 @@ async function refreshAll() {
   sounds = soundData.sounds || [];
 
   pourIdle.value = settings.pour_idle_ms;
+  minPourMl.value = settings.min_pour_ml != null ? settings.min_pour_ml : 10;
   displayUnits.value = settings.display_units || 'liters';
   defaultSound.value = settings.default_sound_file || '';
   fillThemeSelect(uiTheme, settings.ui_theme);
@@ -477,6 +479,7 @@ async function onSettingsSubmit(event) {
       method: 'PUT',
       body: JSON.stringify({
         pour_idle_ms: Number(pourIdle.value),
+        min_pour_ml: Number(minPourMl.value),
         default_sound_file: defaultSound.value,
         display_units: displayUnits.value,
       }),

@@ -26,6 +26,7 @@ function getSettingsPayload() {
   const theme = getSetting('ui_theme');
   return {
     pour_idle_ms: Number(getSetting('pour_idle_ms')),
+    min_pour_ml: Number(getSetting('min_pour_ml')),
     default_sound_file: getSetting('default_sound_file'),
     display_units: getSetting('display_units'),
     ui_theme: ALLOWED_UI_THEMES.has(theme) ? theme : 'amber',
@@ -176,6 +177,15 @@ function onPutSettings(req, res) {
       return;
     }
     setSetting('pour_idle_ms', String(idle));
+  }
+
+  if (body.min_pour_ml != null) {
+    const minMl = Number(body.min_pour_ml);
+    if (!Number.isFinite(minMl) || minMl < 0) {
+      sendError(res, new Error('min_pour_ml must be >= 0'));
+      return;
+    }
+    setSetting('min_pour_ml', String(minMl));
   }
 
   if (body.default_sound_file !== undefined) {

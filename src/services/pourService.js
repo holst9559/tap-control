@@ -1,9 +1,11 @@
+const config = require('../config');
 const { getDb, getSetting } = require('../db/client');
 const kegService = require('./kegService');
 const soundService = require('./soundService');
 const hub = require('../ws/hub');
 
 const activePours = new Map();
+const pendingPours = new Map();
 const idleTimers = new Map();
 const calibrationSessions = new Map();
 
@@ -11,7 +13,16 @@ function getPourIdleMs() {
   const raw = getSetting('pour_idle_ms');
   const value = Number(raw);
   if (!Number.isFinite(value) || value < 500) {
-    return 2500;
+    return config.defaultPourIdleMs;
+  }
+  return value;
+}
+
+function getMinPourMl() {
+  const raw = getSetting('min_pour_ml');
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value < 0) {
+    return config.defaultMinPourMl;
   }
   return value;
 }
@@ -31,46 +42,50 @@ function clearIdleTimer(tapId) {
   }
 }
 
-function openPour(tapId) {
-  const db = getDb();
+function createPendingPour(tapId) {
   const tap = kegService.getTap(tapId);
   if (!tap) {
     return null;
   }
 
-  const startedAt = new Date().toISOString();
-  const result = db
-    .prepare(
-      `
-    INSERT INTO pours (tap_id, keg_id, started_at, ended_at, volume_ml, pulse_count)
-    VALUES (?, ?, ?, NULL, 0, 0)
-  `,
-    )
-    .run(tapId, tap.keg_id, startedAt);
-
-  const pour = {
-    id: result.lastInsertRowid,
+  return {
     tapId,
     kegId: tap.keg_id,
-    startedAt,
+    startedAt: new Date().toISOString(),
     pulseCount: 0,
     volumeMl: 0,
     pulsesPerLiter: tap.pulses_per_liter,
     lastReportedVolumeMl: 0,
+    id: null,
   };
+}
 
-  activePours.set(tapId, pour);
-  soundService.playPourSound(tapId);
+// Persist + notify once volume clears the minimum. Keep this path light:
+// a full status broadcast here (mid-pour) blocks the event loop on Pi and
+// pigpio drops pulses — which is how a 350ml pour became ~11ml.
+function commitPour(pour) {
+  const db = getDb();
+  const result = db
+    .prepare(
+      `
+    INSERT INTO pours (tap_id, keg_id, started_at, ended_at, volume_ml, pulse_count)
+    VALUES (?, ?, ?, NULL, ?, ?)
+  `,
+    )
+    .run(pour.tapId, pour.kegId, pour.startedAt, pour.volumeMl, pour.pulseCount);
+
+  pour.id = result.lastInsertRowid;
+  activePours.set(pour.tapId, pour);
+  pendingPours.delete(pour.tapId);
+
+  soundService.playPourSound(pour.tapId);
 
   hub.broadcast('pour_start', {
-    tapId,
+    tapId: pour.tapId,
     pourId: pour.id,
     kegId: pour.kegId,
-    startedAt,
+    startedAt: pour.startedAt,
   });
-
-  hub.broadcast('status', kegService.getStatus());
-  return pour;
 }
 
 function updateActivePour(tapId) {
@@ -144,7 +159,17 @@ function endPour(tapId) {
   return pour;
 }
 
+function discardPending(tapId) {
+  pendingPours.delete(tapId);
+  clearIdleTimer(tapId);
+}
+
 function onIdleTimeout(tapId) {
+  if (pendingPours.has(tapId)) {
+    // CO2 / equilibrium blips never reached the minimum pour volume
+    discardPending(tapId);
+    return;
+  }
   endPour(tapId);
 }
 
@@ -166,14 +191,31 @@ function handlePulse(tapId) {
   }
 
   let pour = activePours.get(tapId);
-  if (!pour) {
-    pour = openPour(tapId);
-    if (!pour) {
-      return;
-    }
+  if (pour) {
+    pour.pulseCount += 1;
+    updateActivePour(tapId);
+    scheduleIdleEnd(tapId);
+    return;
   }
 
-  pour.pulseCount += 1;
+  let pending = pendingPours.get(tapId);
+  if (!pending) {
+    pending = createPendingPour(tapId);
+    if (!pending) {
+      return;
+    }
+    pendingPours.set(tapId, pending);
+  }
+
+  pending.pulseCount += 1;
+  pending.volumeMl = pulsesToMl(pending.pulseCount, pending.pulsesPerLiter);
+
+  if (pending.volumeMl < getMinPourMl()) {
+    scheduleIdleEnd(tapId);
+    return;
+  }
+
+  commitPour(pending);
   updateActivePour(tapId);
   scheduleIdleEnd(tapId);
 }

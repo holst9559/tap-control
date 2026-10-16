@@ -235,6 +235,18 @@ function createTapCard(tap) {
   return card;
 }
 
+function setTextIfChanged(el, value) {
+  if (el.textContent !== value) {
+    el.textContent = value;
+  }
+}
+
+function setClassIfChanged(el, value) {
+  if (el.className !== value) {
+    el.className = value;
+  }
+}
+
 function updateTapCard(card, tap) {
   const pct = percentRemaining(tap);
   const pouring = pouringTapIds.has(tap.id);
@@ -242,10 +254,11 @@ function updateTapCard(card, tap) {
   const empty = isKegCounterEmpty(tap);
   const historyKey = pourHistoryKey(tap.recent_pours);
   const nextSummaryKey = summaryKey(tap.pour_summary_24h);
+  const nextClass = 'tap-card' + (pouring ? ' pouring' : '') + (empty ? ' tap-empty' : '');
 
-  card.className = 'tap-card' + (pouring ? ' pouring' : '') + (empty ? ' tap-empty' : '');
-  card.querySelector('.tap-label').textContent = tap.name;
-  card.querySelector('.beer-name').textContent = tap.keg_name || 'Inget fat';
+  setClassIfChanged(card, nextClass);
+  setTextIfChanged(card.querySelector('.tap-label'), tap.name);
+  setTextIfChanged(card.querySelector('.beer-name'), tap.keg_name || 'Inget fat');
 
   if (card.dataset.summaryKey !== nextSummaryKey) {
     fillPourSummary(card.querySelector('.pour-summary'), tap.pour_summary_24h);
@@ -263,24 +276,34 @@ function updateTapCard(card, tap) {
 
   if (empty) {
     meter.classList.add('meter--empty');
-    overlay.hidden = false;
-    overlay.querySelector('.tap-empty-overlay-msg').textContent = emptyKegLine(tap);
-    fill.className = 'meter-fill meter-fill--empty';
-    fill.style.width = '100%';
-    card.querySelector('.meter-left').textContent = formatLiters(0);
-    card.querySelector('.meter-right').textContent = '0%';
+    if (overlay.hidden) {
+      overlay.hidden = false;
+      setTextIfChanged(overlay.querySelector('.tap-empty-overlay-msg'), emptyKegLine(tap));
+    }
+    setClassIfChanged(fill, 'meter-fill meter-fill--empty');
+    if (fill.style.width !== '100%') {
+      fill.style.width = '100%';
+    }
+    setTextIfChanged(card.querySelector('.meter-left'), formatLiters(0));
+    setTextIfChanged(card.querySelector('.meter-right'), '0%');
     return;
   }
 
   meter.classList.remove('meter--empty');
-  overlay.hidden = true;
-  overlay.querySelector('.tap-empty-overlay-msg').textContent = '';
+  if (!overlay.hidden) {
+    overlay.hidden = true;
+    overlay.querySelector('.tap-empty-overlay-msg').textContent = '';
+  }
 
-  fill.className = 'meter-fill' + (low ? ' low' : '');
-  fill.style.width = `${pct}%`;
+  const fillClass = 'meter-fill' + (low ? ' low' : '');
+  const width = `${pct}%`;
+  setClassIfChanged(fill, fillClass);
+  if (fill.style.width !== width) {
+    fill.style.width = width;
+  }
 
-  card.querySelector('.meter-left').textContent = tap.keg_id ? formatLiters(tap.remaining_ml) : '—';
-  card.querySelector('.meter-right').textContent = tap.keg_id ? `${pct.toFixed(0)}%` : '';
+  setTextIfChanged(card.querySelector('.meter-left'), tap.keg_id ? formatLiters(tap.remaining_ml) : '—');
+  setTextIfChanged(card.querySelector('.meter-right'), tap.keg_id ? `${pct.toFixed(0)}%` : '');
 }
 
 function renderAll() {
@@ -320,9 +343,11 @@ function applyStatus(payload) {
   }
 }
 
-function onPourStart(payload) {
-  pouringTapIds.add(payload.tapId);
-  const tap = findTap(payload.tapId);
+const pendingTapPaintIds = new Set();
+let tapPaintFrame = 0;
+
+function paintTapCard(tapId) {
+  const tap = findTap(tapId);
   if (!tap) {
     return;
   }
@@ -330,6 +355,28 @@ function onPourStart(payload) {
   if (card) {
     updateTapCard(card, tap);
   }
+}
+
+function flushPendingTapPaints() {
+  tapPaintFrame = 0;
+  for (const tapId of pendingTapPaintIds) {
+    paintTapCard(tapId);
+  }
+  pendingTapPaintIds.clear();
+}
+
+/** Coalesce rapid pour_update pulses to one DOM paint per animation frame (Pi WebKit). */
+function scheduleTapPaint(tapId) {
+  pendingTapPaintIds.add(tapId);
+  if (tapPaintFrame) {
+    return;
+  }
+  tapPaintFrame = requestAnimationFrame(flushPendingTapPaints);
+}
+
+function onPourStart(payload) {
+  pouringTapIds.add(payload.tapId);
+  scheduleTapPaint(payload.tapId);
 }
 
 function onPourUpdate(payload) {
@@ -346,10 +393,7 @@ function onPourUpdate(payload) {
   }
 
   pouringTapIds.add(payload.tapId);
-  const card = tapsEl.querySelector(`[data-tap-id="${tap.id}"]`);
-  if (card) {
-    updateTapCard(card, tap);
-  }
+  scheduleTapPaint(payload.tapId);
 }
 
 function onPourEnd(payload) {

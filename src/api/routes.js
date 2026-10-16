@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const config = require('../config');
 const auth = require('./auth');
+const { requireLanOnly } = require('./publicEdge');
 const kegService = require('../services/kegService');
 const pourService = require('../services/pourService');
 const soundService = require('../services/soundService');
@@ -87,8 +88,8 @@ function createRouter() {
   router.post('/taps/:id/calibration/cancel', auth.requireAuth, onCalibrationCancel);
   router.get('/taps/:id/calibration', auth.requireAuth, onCalibrationGet);
 
-  // Dev / bench helper — inject a pulse without hardware
-  router.post('/debug/pulse/:tapId', onDebugPulse);
+  // Dev / bench helper — inject a pulse without hardware (LAN / loopback only)
+  router.post('/debug/pulse/:tapId', requireLanOnly, onDebugPulse);
 
   return router;
 }

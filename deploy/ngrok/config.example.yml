@@ -20,7 +20,7 @@ endpoints:
     traffic_policy:
       on_http_request:
         - expressions:
-            - "req.url.path.startsWith('/admin')"
+            - "req.url.path.startsWith('/admin') || req.url.path.startsWith('/api/debug')"
           actions:
             - type: deny
               config:

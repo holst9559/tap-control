@@ -1,0 +1,27 @@
+# ngrok agent config — public kiosk only.
+# Copy to /etc/ngrok/ngrok.yml and set agent.authtoken.
+#
+# Free plan: omit `url` under the endpoint (ngrok assigns a random hostname).
+# Reserved / static domain: set e.g. url: https://keezer.ngrok-free.app
+#
+# The CMS at /admin is denied here and again in the Node app (publicEdge.js).
+# Use the Pi on the LAN for admin: http://<pi-hostname>.local:3000/admin
+
+version: 3
+
+agent:
+  authtoken: NGROK_AUTHTOKEN
+
+endpoints:
+  - name: tap-control
+    # url: https://YOUR_RESERVED_DOMAIN.ngrok-free.app
+    upstream:
+      url: http://127.0.0.1:3000
+    traffic_policy:
+      on_http_request:
+        - expressions:
+            - "req.url.path.startsWith('/admin')"
+          actions:
+            - type: deny
+              config:
+                status_code: 404

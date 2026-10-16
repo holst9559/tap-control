@@ -195,21 +195,42 @@ function createTapCard(tap) {
   const right = document.createElement('span');
   right.className = 'meter-right';
 
-  const emptyMsg = document.createElement('p');
-  emptyMsg.className = 'meter-empty-msg';
-  emptyMsg.hidden = true;
-
   bar.appendChild(fill);
   stats.appendChild(left);
   stats.appendChild(right);
-  meter.appendChild(emptyMsg);
   meter.appendChild(bar);
   meter.appendChild(stats);
+
+  const overlay = document.createElement('div');
+  overlay.className = 'tap-empty-overlay';
+  overlay.hidden = true;
+  overlay.setAttribute('aria-live', 'polite');
+
+  const overlayLabel = document.createElement('div');
+  overlayLabel.className = 'tap-empty-overlay-label';
+
+  const overlayIcon = document.createElement('span');
+  overlayIcon.className = 'tap-empty-overlay-icon';
+  overlayIcon.setAttribute('aria-hidden', 'true');
+  overlayIcon.textContent = '⚠';
+
+  const overlayTitle = document.createElement('strong');
+  overlayTitle.className = 'tap-empty-overlay-title';
+  overlayTitle.textContent = 'TOMT';
+
+  const overlayMsg = document.createElement('span');
+  overlayMsg.className = 'tap-empty-overlay-msg';
+
+  overlayLabel.appendChild(overlayIcon);
+  overlayLabel.appendChild(overlayTitle);
+  overlayLabel.appendChild(overlayMsg);
+  overlay.appendChild(overlayLabel);
 
   card.appendChild(head);
   card.appendChild(summary);
   card.appendChild(history);
   card.appendChild(meter);
+  card.appendChild(overlay);
 
   return card;
 }
@@ -237,13 +258,13 @@ function updateTapCard(card, tap) {
   }
 
   const meter = card.querySelector('.meter');
-  const emptyMsg = card.querySelector('.meter-empty-msg');
+  const overlay = card.querySelector('.tap-empty-overlay');
   const fill = card.querySelector('.meter-fill');
 
   if (empty) {
     meter.classList.add('meter--empty');
-    emptyMsg.hidden = false;
-    emptyMsg.textContent = emptyKegLine(tap);
+    overlay.hidden = false;
+    overlay.querySelector('.tap-empty-overlay-msg').textContent = emptyKegLine(tap);
     fill.className = 'meter-fill meter-fill--empty';
     fill.style.width = '100%';
     card.querySelector('.meter-left').textContent = formatLiters(0);
@@ -252,8 +273,8 @@ function updateTapCard(card, tap) {
   }
 
   meter.classList.remove('meter--empty');
-  emptyMsg.hidden = true;
-  emptyMsg.textContent = '';
+  overlay.hidden = true;
+  overlay.querySelector('.tap-empty-overlay-msg').textContent = '';
 
   fill.className = 'meter-fill' + (low ? ' low' : '');
   fill.style.width = `${pct}%`;

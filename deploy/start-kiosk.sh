@@ -78,6 +78,44 @@ kill_epiphany() {
   sleep 1
 }
 
+# Epiphany restores the previous session on start. When we kill it (reboot /
+# systemd restart) that state is saved, then the next launch restores old tabs
+# *and* opens $URL again — tabs multiply every restart.
+clear_epiphany_session() {
+  local removed=0
+  local f
+  for f in \
+    "$PROFILE/session_state.xml" \
+    "$PROFILE/session_state.xml.tmp" \
+    "$PROFILE/session.xml"; do
+    if [ -e "$f" ]; then
+      rm -f "$f"
+      removed=1
+    fi
+  done
+  # Newer Epiphany / WebKit layouts vary; wipe any leftover session blobs.
+  while IFS= read -r f; do
+    rm -f "$f"
+    removed=1
+  done < <(find "$PROFILE" -maxdepth 2 -type f \( -iname '*session*' -o -iname 'states' \) 2>/dev/null || true)
+  if [ "$removed" -eq 1 ]; then
+    echo "cleared epiphany session state under $PROFILE"
+  fi
+}
+
+# Default Pi OS blanks / cuts HDMI after ~10–30 min of idle (X screensaver + DPMS).
+disable_display_blanking() {
+  if ! command -v xset >/dev/null 2>&1; then
+    echo "warning: xset not found — apt install x11-xserver-utils"
+    return 0
+  fi
+  xset s off 2>/dev/null || true
+  xset s noblank 2>/dev/null || true
+  xset -dpms 2>/dev/null || true
+  xset dpms 0 0 0 2>/dev/null || true
+  echo "disabled X screensaver / DPMS (HDMI stay-on)"
+}
+
 hide_desktop_chrome() {
   pkill -u "$(id -un)" -x wf-panel-pi 2>/dev/null || true
   pkill -u "$(id -un)" -x lxpanel 2>/dev/null || true
@@ -104,8 +142,10 @@ raise_and_fullscreen() {
 if ! wait_for_display; then
   exit 1
 fi
+disable_display_blanking
 wait_for_app
 kill_epiphany
+clear_epiphany_session
 
 if [ ! -x /usr/bin/epiphany ]; then
   echo "error: /usr/bin/epiphany not found — apt install epiphany-browser"

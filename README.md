@@ -110,11 +110,12 @@ sudo systemctl status tap-control --no-pager
 sudo journalctl -u tap-control -n 40 --no-pager
 ```
 
-Kiosk (Epiphany fullscreen on **X11**): system systemd waits for the display, then `start-kiosk.sh` hides the panel and fullscreenes the browser. Cursor hide is via `unclutter`.
+Kiosk (Epiphany fullscreen on **X11**): system systemd waits for the display, then `start-kiosk.sh` hides the panel and fullscreenes the browser. Cursor hide is via `unclutter`. The start script also clears Epiphany session state (avoids stacked tabs after reboot) and disables X DPMS/screensaver (keeps HDMI from dropping after ~30 min idle).
 
 ```bash
 # Prefer X11 (Advanced Options → Wayland → X11) and desktop autologin:
 sudo raspi-config
+# Also: Display Options → Screen Blanking → Disable
 
 cd ~/tap-control
 chmod +x deploy/install-kiosk-autostart.sh deploy/start-kiosk.sh

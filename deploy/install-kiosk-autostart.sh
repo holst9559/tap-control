@@ -17,7 +17,7 @@ mkdir -p "$AUTOSTART_DIR"
 
 echo "== apt =="
 sudo apt-get update
-sudo apt-get install -y unclutter wmctrl epiphany-browser dbus-x11
+sudo apt-get install -y unclutter wmctrl epiphany-browser dbus-x11 x11-xserver-utils
 
 echo "== systemd unit (browser) =="
 sudo tee "$UNIT_DST" >/dev/null <<EOF
@@ -48,7 +48,7 @@ EOF
 sudo systemctl daemon-reload
 sudo systemctl enable tap-control-kiosk.service
 
-echo "== unclutter (cursor) =="
+echo "== unclutter + no HDMI blanking =="
 # Drop old competing browser autostarts / Wayland leftovers.
 rm -f "$AUTOSTART_DIR/tap-control-kiosk.desktop"
 rm -f "$USER_HOME/.config/systemd/user/tap-control-kiosk.service"
@@ -57,10 +57,17 @@ for f in \
   "$USER_HOME/.config/lxsession/LXDE-pi/autostart" \
   "$USER_HOME/.config/labwc/autostart"; do
   if [ -f "$f" ]; then
-    grep -vE 'start-kiosk\.sh' "$f" >"$f.tmp" 2>/dev/null || true
+    grep -vE 'start-kiosk\.sh|epiphany|chromium' "$f" >"$f.tmp" 2>/dev/null || true
     mv "$f.tmp" "$f"
   fi
 done
+
+# Pi OS "Screen Blanking" (raspi-config) — disable if available.
+if command -v raspi-config >/dev/null 2>&1; then
+  sudo raspi-config nonint do_blanking 1 2>/dev/null \
+    && echo "raspi-config screen blanking: disabled" \
+    || echo "note: could not set raspi-config blanking (ok if older OS)"
+fi
 
 cat >"$AUTOSTART_DIR/unclutter.desktop" <<'EOF'
 [Desktop Entry]
@@ -73,6 +80,24 @@ StartupNotify=false
 Terminal=false
 EOF
 
+# Belt-and-suspenders: keep HDMI alive even if kiosk service restarts later.
+cat >"$AUTOSTART_DIR/tap-control-no-blank.desktop" <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Tap Control No Blank
+Comment=Disable X screensaver and DPMS so HDMI stays on
+Exec=sh -c "xset s off; xset s noblank; xset -dpms; xset dpms 0 0 0"
+X-GNOME-Autostart-enabled=true
+StartupNotify=false
+Terminal=false
+EOF
+
+echo "== reset stacked Epiphany kiosk tabs =="
+PROFILE="${TAP_CONTROL_KIOSK_PROFILE:-$USER_HOME/.config/epiphany-tap-kiosk}"
+mkdir -p "$PROFILE"
+find "$PROFILE" -maxdepth 2 -type f \( -iname '*session*' -o -iname 'states' \) -delete 2>/dev/null || true
+echo "cleared session files under $PROFILE"
+
 echo
 sudo systemctl restart tap-control-kiosk.service || true
 sleep 2
@@ -81,3 +106,4 @@ echo
 echo "Done."
 echo "  sudo systemctl status tap-control-kiosk.service --no-pager"
 echo "  tail -40 $USER_HOME/tap-control-kiosk.log"
+echo "  DISPLAY=:0 xset q | grep -A2 DPMS"

@@ -91,6 +91,43 @@ button.secondary {
   border-color: var(--line);
 }
 
+button.danger {
+  background: transparent;
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+button.linkish {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  padding: 0.2rem 0.35rem;
+  font-weight: 600;
+}
+
+button.linkish.danger {
+  color: var(--danger);
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: end;
+}
+
+.subheading {
+  margin: 1.25rem 0 0.75rem;
+  font-size: 1.05rem;
+}
+
+.keg-actions {
+  display: flex;
+  gap: 0.35rem;
+  justify-content: flex-end;
+  white-space: nowrap;
+}
+
 button:hover {
   filter: brightness(1.05);
 }

@@ -9,26 +9,33 @@ const logoutBtn = document.getElementById('logout-btn');
 
 const liveTapsEl = document.getElementById('live-taps');
 const poursBody = document.getElementById('pours-body');
+const kegsBody = document.getElementById('kegs-body');
+const kegsEmpty = document.getElementById('kegs-empty');
+
+const createKegForm = document.getElementById('create-keg-form');
+const createName = document.getElementById('create-name');
+const createBrewery = document.getElementById('create-brewery');
+const createCapacity = document.getElementById('create-capacity');
+const createRemaining = document.getElementById('create-remaining');
+const createNotes = document.getElementById('create-notes');
+const createMsg = document.getElementById('create-msg');
 
 const assignForm = document.getElementById('assign-form');
 const assignTap = document.getElementById('assign-tap');
-const assignMode = document.getElementById('assign-mode');
-const existingKegWrap = document.getElementById('existing-keg-wrap');
 const assignExisting = document.getElementById('assign-existing');
-const assignName = document.getElementById('assign-name');
-const assignCapacity = document.getElementById('assign-capacity');
-const assignRemaining = document.getElementById('assign-remaining');
 const assignPreviousStatus = document.getElementById('assign-previous-status');
 const assignMsg = document.getElementById('assign-msg');
 
 const editKegForm = document.getElementById('edit-keg-form');
 const editKegId = document.getElementById('edit-keg-id');
 const editName = document.getElementById('edit-name');
+const editBrewery = document.getElementById('edit-brewery');
 const editCapacity = document.getElementById('edit-capacity');
 const editRemaining = document.getElementById('edit-remaining');
 const editStatus = document.getElementById('edit-status');
 const editNotes = document.getElementById('edit-notes');
 const editMsg = document.getElementById('edit-msg');
+const deleteKegBtn = document.getElementById('delete-keg-btn');
 
 const tapForm = document.getElementById('tap-form');
 const tapId = document.getElementById('tap-id');
@@ -169,7 +176,29 @@ function statusLabel(status) {
 }
 
 function kegLabel(keg) {
-  return `${keg.name} · ${Math.round(keg.remaining_ml)}/${Math.round(keg.capacity_ml)} ml · ${statusLabel(keg.status)}`;
+  const brewery = keg.brewery ? ` (${keg.brewery})` : '';
+  return `${keg.name}${brewery} · ${Math.round(keg.remaining_ml)}/${Math.round(keg.capacity_ml)} ml · ${statusLabel(keg.status)}`;
+}
+
+function assignableKegs() {
+  const sorted = kegs.slice();
+  sorted.sort((a, b) => {
+    const rank = (status) => {
+      if (status === 'stored') {
+        return 0;
+      }
+      if (status === 'on_tap') {
+        return 1;
+      }
+      return 2;
+    };
+    const diff = rank(a.status) - rank(b.status);
+    if (diff !== 0) {
+      return diff;
+    }
+    return String(a.name).localeCompare(String(b.name), 'sv');
+  });
+  return sorted.filter((keg) => keg.status !== 'empty');
 }
 
 function soundValue(name) {
@@ -246,10 +275,62 @@ function renderPours(pours) {
   }
 }
 
+function selectKegForEdit(kegId) {
+  editKegId.value = String(kegId);
+  syncEditKegForm();
+  editKegForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function renderKegs() {
+  kegsBody.innerHTML = '';
+  kegsEmpty.hidden = kegs.length > 0;
+
+  for (const keg of kegs) {
+    const tr = document.createElement('tr');
+
+    const name = document.createElement('td');
+    name.textContent = keg.name;
+
+    const brewery = document.createElement('td');
+    brewery.textContent = keg.brewery || '—';
+
+    const volume = document.createElement('td');
+    volume.textContent = `${Math.round(keg.remaining_ml)} / ${Math.round(keg.capacity_ml)} ml`;
+
+    const status = document.createElement('td');
+    status.textContent = statusLabel(keg.status);
+
+    const actions = document.createElement('td');
+    actions.className = 'keg-actions';
+
+    const editBtn = document.createElement('button');
+    editBtn.type = 'button';
+    editBtn.className = 'linkish';
+    editBtn.textContent = 'Redigera';
+    editBtn.addEventListener('click', () => selectKegForEdit(keg.id));
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.type = 'button';
+    deleteBtn.className = 'linkish danger';
+    deleteBtn.textContent = 'Ta bort';
+    deleteBtn.addEventListener('click', () => deleteKegById(keg.id, keg.name));
+
+    actions.appendChild(editBtn);
+    actions.appendChild(deleteBtn);
+
+    tr.appendChild(name);
+    tr.appendChild(brewery);
+    tr.appendChild(volume);
+    tr.appendChild(status);
+    tr.appendChild(actions);
+    kegsBody.appendChild(tr);
+  }
+}
+
 function refreshSelects() {
   fillSelect(assignTap, taps, tapValue, tapLabel, false);
   fillSelect(tapId, taps, tapValue, tapLabel, false);
-  fillSelect(assignExisting, kegs, kegValue, kegLabel, false);
+  fillSelect(assignExisting, assignableKegs(), kegValue, kegLabel, false);
   fillSelect(editKegId, kegs, kegValue, kegLabel, false);
 
   fillSelect(tapSound, sounds, soundValue, soundLabel, true);
@@ -295,18 +376,11 @@ function syncEditKegForm() {
   }
 
   editName.value = keg.name;
+  editBrewery.value = keg.brewery || '';
   editCapacity.value = Math.round(keg.capacity_ml);
   editRemaining.value = Math.round(keg.remaining_ml);
   editStatus.value = keg.status;
   editNotes.value = keg.notes || '';
-}
-
-function syncAssignMode() {
-  const existing = assignMode.value === 'existing';
-  existingKegWrap.hidden = !existing;
-  assignName.disabled = existing;
-  assignCapacity.disabled = existing;
-  assignRemaining.disabled = existing;
 }
 
 async function refreshAll() {
@@ -329,6 +403,7 @@ async function refreshAll() {
 
   refreshSelects();
   renderLiveTaps();
+  renderKegs();
   renderPours(pourData.pours || []);
 }
 
@@ -361,30 +436,41 @@ async function onLogout() {
   showLogin();
 }
 
+async function onCreateKegSubmit(event) {
+  event.preventDefault();
+
+  try {
+    await api('/kegs', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: createName.value,
+        brewery: createBrewery.value || null,
+        notes: createNotes.value || null,
+        capacity_ml: Number(createCapacity.value),
+        remaining_ml: Number(createRemaining.value),
+        status: 'stored',
+      }),
+    });
+    showMsg(createMsg, 'Fat sparat i lager', false);
+    createKegForm.reset();
+    createCapacity.value = '18927';
+    createRemaining.value = '18927';
+    await refreshAll();
+  } catch (err) {
+    showMsg(createMsg, err.message, true);
+  }
+}
+
 async function onAssignSubmit(event) {
   event.preventDefault();
 
   try {
-    let body;
-
-    if (assignMode.value === 'existing') {
-      body = {
-        keg_id: Number(assignExisting.value),
-        previous_status: assignPreviousStatus.value,
-      };
-    } else {
-      body = {
-        create: true,
-        name: assignName.value,
-        capacity_ml: Number(assignCapacity.value),
-        remaining_ml: Number(assignRemaining.value),
-        previous_status: assignPreviousStatus.value,
-      };
-    }
-
     await api(`/taps/${assignTap.value}/assign-keg`, {
       method: 'POST',
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        keg_id: Number(assignExisting.value),
+        previous_status: assignPreviousStatus.value,
+      }),
     });
 
     showMsg(assignMsg, 'Fat kopplat', false);
@@ -402,6 +488,7 @@ async function onEditKegSubmit(event) {
       method: 'PATCH',
       body: JSON.stringify({
         name: editName.value,
+        brewery: editBrewery.value || null,
         capacity_ml: Number(editCapacity.value),
         remaining_ml: Number(editRemaining.value),
         status: editStatus.value,
@@ -413,6 +500,34 @@ async function onEditKegSubmit(event) {
   } catch (err) {
     showMsg(editMsg, err.message, true);
   }
+}
+
+async function deleteKegById(kegId, kegName) {
+  const label = kegName || `fat #${kegId}`;
+  const confirmed = window.confirm(
+    `Ta bort ${label}? Tappningshistorik behålls men kopplingen till fatet rensas.`,
+  );
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    await api(`/kegs/${kegId}`, { method: 'DELETE' });
+    showMsg(editMsg, 'Fat borttaget', false);
+    await refreshAll();
+  } catch (err) {
+    showMsg(editMsg, err.message, true);
+  }
+}
+
+async function onDeleteKeg() {
+  if (!editKegId.value) {
+    showMsg(editMsg, 'Välj ett fat först', true);
+    return;
+  }
+
+  const keg = findKegById(Number(editKegId.value));
+  await deleteKegById(Number(editKegId.value), keg ? keg.name : null);
 }
 
 async function onTapSubmit(event) {
@@ -583,6 +698,7 @@ function onWsMessage(event) {
   if (message.event === 'kegs_changed' && message.payload && message.payload.kegs) {
     kegs = message.payload.kegs;
     refreshSelects();
+    renderKegs();
     return;
   }
 
@@ -643,10 +759,11 @@ async function loadPublicTheme() {
 async function boot() {
   loginForm.addEventListener('submit', onLoginSubmit);
   logoutBtn.addEventListener('click', onLogout);
+  createKegForm.addEventListener('submit', onCreateKegSubmit);
   assignForm.addEventListener('submit', onAssignSubmit);
-  assignMode.addEventListener('change', syncAssignMode);
   editKegForm.addEventListener('submit', onEditKegSubmit);
   editKegId.addEventListener('change', syncEditKegForm);
+  deleteKegBtn.addEventListener('click', onDeleteKeg);
   tapForm.addEventListener('submit', onTapSubmit);
   tapId.addEventListener('change', syncTapForm);
   calStart.addEventListener('click', onCalStart);
@@ -659,7 +776,6 @@ async function boot() {
   uploadForm.addEventListener('submit', onUploadSubmit);
   pinForm.addEventListener('submit', onPinSubmit);
 
-  syncAssignMode();
   await loadPublicTheme();
 
   if (!token) {

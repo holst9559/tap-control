@@ -42,34 +42,45 @@
       </section>
 
       <section class="panel">
+        <h2>Lägg till fat i lager</h2>
+        <p class="muted">Skapa ett fat i keezer/lager utan att koppla det till en kran.</p>
+        <form id="create-keg-form" class="form-grid">
+          <label>
+            Ölnamn
+            <input id="create-name" type="text" placeholder="IPA" required />
+          </label>
+          <label>
+            Bryggeri
+            <input id="create-brewery" type="text" placeholder="Valfritt" />
+          </label>
+          <label>
+            Kapacitet (ml)
+            <input id="create-capacity" type="number" min="1" step="1" value="18927" required />
+          </label>
+          <label>
+            Kvar (ml)
+            <input id="create-remaining" type="number" min="0" step="1" value="18927" required />
+          </label>
+          <label>
+            Anteckningar
+            <input id="create-notes" type="text" />
+          </label>
+          <button type="submit">Spara i lager</button>
+        </form>
+        <p id="create-msg" class="msg" hidden></p>
+      </section>
+
+      <section class="panel">
         <h2>Byt / koppla fat</h2>
+        <p class="muted">Koppla ett lagrat fat till en kran.</p>
         <form id="assign-form" class="form-grid">
           <label>
             Kran
             <select id="assign-tap" required></select>
           </label>
           <label>
-            Läge
-            <select id="assign-mode">
-              <option value="create">Skapa nytt fat</option>
-              <option value="existing">Använd befintligt fat</option>
-            </select>
-          </label>
-          <label id="existing-keg-wrap" hidden>
-            Befintligt fat
-            <select id="assign-existing"></select>
-          </label>
-          <label>
-            Ölnamn
-            <input id="assign-name" type="text" placeholder="IPA" />
-          </label>
-          <label>
-            Kapacitet (ml)
-            <input id="assign-capacity" type="number" min="1" step="1" value="18927" />
-          </label>
-          <label>
-            Kvar (ml)
-            <input id="assign-remaining" type="number" min="0" step="1" value="18927" />
+            Fat
+            <select id="assign-existing" required></select>
           </label>
           <label>
             Föregående fat blir
@@ -84,7 +95,25 @@
       </section>
 
       <section class="panel">
-        <h2>Redigera fat</h2>
+        <h2>Fatlager</h2>
+        <p class="muted">Alla fat — lagrade, på kran och tomma.</p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Namn</th>
+                <th>Bryggeri</th>
+                <th>Kvar</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="kegs-body"></tbody>
+          </table>
+        </div>
+        <p id="kegs-empty" class="muted" hidden>Inga fat ännu.</p>
+
+        <h3 class="subheading">Redigera valt fat</h3>
         <form id="edit-keg-form" class="form-grid">
           <label>
             Fat
@@ -93,6 +122,10 @@
           <label>
             Namn
             <input id="edit-name" type="text" required />
+          </label>
+          <label>
+            Bryggeri
+            <input id="edit-brewery" type="text" />
           </label>
           <label>
             Kapacitet (ml)
@@ -114,7 +147,10 @@
             Anteckningar
             <input id="edit-notes" type="text" />
           </label>
-          <button type="submit">Spara fat</button>
+          <div class="form-actions">
+            <button type="submit">Spara fat</button>
+            <button id="delete-keg-btn" type="button" class="danger">Ta bort fat</button>
+          </div>
         </form>
         <p id="edit-msg" class="msg" hidden></p>
       </section>

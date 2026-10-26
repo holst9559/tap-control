@@ -124,6 +124,25 @@ function createKeg(input) {
   return keg;
 }
 
+function deleteKeg(kegId) {
+  const db = getDb();
+  const existing = getKeg(kegId);
+  if (!existing) {
+    throw new Error('Keg not found');
+  }
+
+  const tx = db.transaction(() => {
+    db.prepare('UPDATE taps SET keg_id = NULL WHERE keg_id = ?').run(kegId);
+    db.prepare('UPDATE pours SET keg_id = NULL WHERE keg_id = ?').run(kegId);
+    db.prepare('DELETE FROM kegs WHERE id = ?').run(kegId);
+  });
+  tx();
+
+  hub.broadcast('status', getStatus());
+  hub.broadcast('kegs_changed', { kegs: listKegs() });
+  return { ok: true, id: kegId };
+}
+
 function updateKeg(kegId, input) {
   const db = getDb();
   const existing = getKeg(kegId);
@@ -419,6 +438,7 @@ module.exports = {
   getKeg,
   createKeg,
   updateKeg,
+  deleteKeg,
   assignKegToTap,
   updateTap,
   subtractFromKeg,

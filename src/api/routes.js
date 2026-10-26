@@ -74,6 +74,7 @@ function createRouter() {
 
   router.post('/kegs', auth.requireAuth, onCreateKeg);
   router.patch('/kegs/:id', auth.requireAuth, onUpdateKeg);
+  router.delete('/kegs/:id', auth.requireAuth, onDeleteKeg);
   router.post('/taps/:id/assign-keg', auth.requireAuth, onAssignKeg);
   router.patch('/taps/:id', auth.requireAuth, onUpdateTap);
 
@@ -147,6 +148,15 @@ function onUpdateKeg(req, res) {
     res.json({ keg });
   } catch (err) {
     sendError(res, err);
+  }
+}
+
+function onDeleteKeg(req, res) {
+  try {
+    const result = kegService.deleteKeg(Number(req.params.id));
+    res.json(result);
+  } catch (err) {
+    sendError(res, err, err.message === 'Keg not found' ? 404 : 400);
   }
 }
 

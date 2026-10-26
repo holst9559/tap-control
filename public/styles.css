@@ -107,6 +107,8 @@ body::before {
 }
 
 .beer-name {
+  display:flex;
+  align-items: flex-end;
   margin: 0;
   /* Reserve exactly two lines for every tap */
   height: calc(1.15em * 2);
@@ -118,6 +120,23 @@ body::before {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-clamp: 2;
+}
+
+.beer-type {
+  margin: 0;
+  min-height: 1.3em;
+  font-size: clamp(1rem, 1.6vw, 1.25rem);
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.beer-type[hidden] {
+  display: none;
 }
 
 .pour-summary {
@@ -286,7 +305,8 @@ body::before {
   font-weight: 700;
 }
 
-.tap-empty .beer-name {
+.tap-empty .beer-name,
+.tap-empty .beer-type {
   color: var(--muted);
 }
 
@@ -343,6 +363,10 @@ body::before {
 
 .pouring .beer-name {
   color: var(--amber);
+}
+
+.pouring .beer-type {
+  color: color-mix(in srgb, var(--amber) 70%, var(--muted));
 }
 
 /* Squeeze the 3-column kiosk a bit on mid-width landscape (e.g. small HDMI). */

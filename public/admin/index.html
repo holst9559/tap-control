@@ -47,7 +47,11 @@
         <form id="create-keg-form" class="form-grid">
           <label>
             Ölnamn
-            <input id="create-name" type="text" placeholder="IPA" required />
+            <input id="create-name" type="text" placeholder="Namn på ölen" required />
+          </label>
+          <label>
+            Ölsort
+            <input id="create-beer-type" type="text" placeholder="IPA, lager, stout…" />
           </label>
           <label>
             Bryggeri
@@ -102,6 +106,7 @@
             <thead>
               <tr>
                 <th>Namn</th>
+                <th>Ölsort</th>
                 <th>Bryggeri</th>
                 <th>Kvar</th>
                 <th>Status</th>
@@ -122,6 +127,10 @@
           <label>
             Namn
             <input id="edit-name" type="text" required />
+          </label>
+          <label>
+            Ölsort
+            <input id="edit-beer-type" type="text" placeholder="IPA, lager, stout…" />
           </label>
           <label>
             Bryggeri

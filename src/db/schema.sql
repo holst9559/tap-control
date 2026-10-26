@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS kegs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
   brewery TEXT,
+  beer_type TEXT,
   notes TEXT,
   capacity_ml REAL NOT NULL,
   remaining_ml REAL NOT NULL,

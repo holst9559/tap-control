@@ -71,8 +71,8 @@ function seedDefaults() {
 
   const now = new Date().toISOString();
   const insertKeg = db.prepare(`
-    INSERT INTO kegs (name, brewery, notes, capacity_ml, remaining_ml, status, created_at, updated_at)
-    VALUES (@name, @brewery, @notes, @capacity_ml, @remaining_ml, @status, @created_at, @updated_at)
+    INSERT INTO kegs (name, brewery, beer_type, notes, capacity_ml, remaining_ml, status, created_at, updated_at)
+    VALUES (@name, @brewery, @beer_type, @notes, @capacity_ml, @remaining_ml, @status, @created_at, @updated_at)
   `);
 
   const assignKeg = db.prepare('UPDATE taps SET keg_id = ? WHERE id = ?');
@@ -90,6 +90,7 @@ function seedDefaults() {
     const result = insertKeg.run({
       name: `Öl ${tap.id}`,
       brewery: null,
+      beer_type: null,
       notes: null,
       capacity_ml: config.defaultKegCapacityMl,
       remaining_ml: config.defaultKegCapacityMl,
@@ -115,9 +116,21 @@ function openDatabase() {
   const schemaPath = path.join(__dirname, 'schema.sql');
   const schema = fs.readFileSync(schemaPath, 'utf8');
   db.exec(schema);
+  migrateSchema();
   seedDefaults();
 
   return db;
+}
+
+function tableHasColumn(tableName, columnName) {
+  const columns = db.prepare(`PRAGMA table_info(${tableName})`).all();
+  return columns.some((column) => column.name === columnName);
+}
+
+function migrateSchema() {
+  if (!tableHasColumn('kegs', 'beer_type')) {
+    db.exec('ALTER TABLE kegs ADD COLUMN beer_type TEXT');
+  }
 }
 
 function getDb() {

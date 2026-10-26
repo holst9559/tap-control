@@ -155,8 +155,12 @@ function createTapCard(tap) {
   const beer = document.createElement('h2');
   beer.className = 'beer-name';
 
+  const beerType = document.createElement('p');
+  beerType.className = 'beer-type';
+
   head.appendChild(label);
   head.appendChild(beer);
+  head.appendChild(beerType);
 
   const summary = document.createElement('div');
   summary.className = 'pour-summary';
@@ -259,6 +263,13 @@ function updateTapCard(card, tap) {
   setClassIfChanged(card, nextClass);
   setTextIfChanged(card.querySelector('.tap-label'), tap.name);
   setTextIfChanged(card.querySelector('.beer-name'), tap.keg_name || 'Inget fat');
+
+  const beerTypeEl = card.querySelector('.beer-type');
+  const beerType = tap.keg_beer_type || '';
+  setTextIfChanged(beerTypeEl, beerType);
+  if (beerTypeEl.hidden !== !beerType) {
+    beerTypeEl.hidden = !beerType;
+  }
 
   if (card.dataset.summaryKey !== nextSummaryKey) {
     fillPourSummary(card.querySelector('.pour-summary'), tap.pour_summary_24h);

@@ -14,6 +14,7 @@ const kegsEmpty = document.getElementById('kegs-empty');
 
 const createKegForm = document.getElementById('create-keg-form');
 const createName = document.getElementById('create-name');
+const createBeerType = document.getElementById('create-beer-type');
 const createBrewery = document.getElementById('create-brewery');
 const createCapacity = document.getElementById('create-capacity');
 const createRemaining = document.getElementById('create-remaining');
@@ -29,6 +30,7 @@ const assignMsg = document.getElementById('assign-msg');
 const editKegForm = document.getElementById('edit-keg-form');
 const editKegId = document.getElementById('edit-keg-id');
 const editName = document.getElementById('edit-name');
+const editBeerType = document.getElementById('edit-beer-type');
 const editBrewery = document.getElementById('edit-brewery');
 const editCapacity = document.getElementById('edit-capacity');
 const editRemaining = document.getElementById('edit-remaining');
@@ -176,8 +178,9 @@ function statusLabel(status) {
 }
 
 function kegLabel(keg) {
+  const beerType = keg.beer_type ? ` · ${keg.beer_type}` : '';
   const brewery = keg.brewery ? ` (${keg.brewery})` : '';
-  return `${keg.name}${brewery} · ${Math.round(keg.remaining_ml)}/${Math.round(keg.capacity_ml)} ml · ${statusLabel(keg.status)}`;
+  return `${keg.name}${beerType}${brewery} · ${Math.round(keg.remaining_ml)}/${Math.round(keg.capacity_ml)} ml · ${statusLabel(keg.status)}`;
 }
 
 function assignableKegs() {
@@ -230,6 +233,10 @@ function renderLiveTaps() {
     const beer = document.createElement('strong');
     beer.textContent = tap.keg_name || 'Inget fat kopplat';
 
+    const beerType = document.createElement('div');
+    beerType.className = 'muted';
+    beerType.textContent = tap.keg_beer_type || '';
+
     const meta = document.createElement('div');
     meta.className = 'muted';
     meta.textContent = tap.keg_id
@@ -244,6 +251,9 @@ function renderLiveTaps() {
 
     card.appendChild(title);
     card.appendChild(beer);
+    if (tap.keg_beer_type) {
+      card.appendChild(beerType);
+    }
     card.appendChild(meta);
     card.appendChild(bar);
     liveTapsEl.appendChild(card);
@@ -291,6 +301,9 @@ function renderKegs() {
     const name = document.createElement('td');
     name.textContent = keg.name;
 
+    const beerType = document.createElement('td');
+    beerType.textContent = keg.beer_type || '—';
+
     const brewery = document.createElement('td');
     brewery.textContent = keg.brewery || '—';
 
@@ -319,6 +332,7 @@ function renderKegs() {
     actions.appendChild(deleteBtn);
 
     tr.appendChild(name);
+    tr.appendChild(beerType);
     tr.appendChild(brewery);
     tr.appendChild(volume);
     tr.appendChild(status);
@@ -376,6 +390,7 @@ function syncEditKegForm() {
   }
 
   editName.value = keg.name;
+  editBeerType.value = keg.beer_type || '';
   editBrewery.value = keg.brewery || '';
   editCapacity.value = Math.round(keg.capacity_ml);
   editRemaining.value = Math.round(keg.remaining_ml);
@@ -444,6 +459,7 @@ async function onCreateKegSubmit(event) {
       method: 'POST',
       body: JSON.stringify({
         name: createName.value,
+        beer_type: createBeerType.value || null,
         brewery: createBrewery.value || null,
         notes: createNotes.value || null,
         capacity_ml: Number(createCapacity.value),
@@ -488,6 +504,7 @@ async function onEditKegSubmit(event) {
       method: 'PATCH',
       body: JSON.stringify({
         name: editName.value,
+        beer_type: editBeerType.value || null,
         brewery: editBrewery.value || null,
         capacity_ml: Number(editCapacity.value),
         remaining_ml: Number(editRemaining.value),

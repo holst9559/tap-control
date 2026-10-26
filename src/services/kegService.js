@@ -19,6 +19,7 @@ function listTaps() {
       t.keg_id,
       k.name AS keg_name,
       k.brewery AS keg_brewery,
+      k.beer_type AS keg_beer_type,
       k.notes AS keg_notes,
       k.capacity_ml,
       k.remaining_ml,
@@ -45,6 +46,7 @@ function getTap(tapId) {
       t.keg_id,
       k.name AS keg_name,
       k.brewery AS keg_brewery,
+      k.beer_type AS keg_beer_type,
       k.notes AS keg_notes,
       k.capacity_ml,
       k.remaining_ml,
@@ -62,7 +64,7 @@ function listKegs() {
   return db
     .prepare(
       `
-    SELECT id, name, brewery, notes, capacity_ml, remaining_ml, status, created_at, updated_at
+    SELECT id, name, brewery, beer_type, notes, capacity_ml, remaining_ml, status, created_at, updated_at
     FROM kegs
     ORDER BY updated_at DESC
   `,
@@ -75,12 +77,20 @@ function getKeg(kegId) {
   return db
     .prepare(
       `
-    SELECT id, name, brewery, notes, capacity_ml, remaining_ml, status, created_at, updated_at
+    SELECT id, name, brewery, beer_type, notes, capacity_ml, remaining_ml, status, created_at, updated_at
     FROM kegs
     WHERE id = ?
   `,
     )
     .get(kegId);
+}
+
+function optionalText(value) {
+  if (!value) {
+    return null;
+  }
+  const trimmed = String(value).trim();
+  return trimmed || null;
 }
 
 function createKeg(input) {
@@ -104,14 +114,15 @@ function createKeg(input) {
   const result = db
     .prepare(
       `
-    INSERT INTO kegs (name, brewery, notes, capacity_ml, remaining_ml, status, created_at, updated_at)
-    VALUES (@name, @brewery, @notes, @capacity_ml, @remaining_ml, @status, @created_at, @updated_at)
+    INSERT INTO kegs (name, brewery, beer_type, notes, capacity_ml, remaining_ml, status, created_at, updated_at)
+    VALUES (@name, @brewery, @beer_type, @notes, @capacity_ml, @remaining_ml, @status, @created_at, @updated_at)
   `,
     )
     .run({
       name: String(input.name || 'Namnlös').trim(),
-      brewery: input.brewery ? String(input.brewery).trim() : null,
-      notes: input.notes ? String(input.notes).trim() : null,
+      brewery: optionalText(input.brewery),
+      beer_type: optionalText(input.beer_type),
+      notes: optionalText(input.notes),
       capacity_ml: capacity,
       remaining_ml: remaining,
       status: input.status || 'stored',
@@ -152,13 +163,10 @@ function updateKeg(kegId, input) {
 
   const name = input.name != null ? String(input.name).trim() : existing.name;
   const brewery =
-    input.brewery !== undefined
-      ? input.brewery
-        ? String(input.brewery).trim()
-        : null
-      : existing.brewery;
-  const notes =
-    input.notes !== undefined ? (input.notes ? String(input.notes).trim() : null) : existing.notes;
+    input.brewery !== undefined ? optionalText(input.brewery) : existing.brewery;
+  const beerType =
+    input.beer_type !== undefined ? optionalText(input.beer_type) : existing.beer_type;
+  const notes = input.notes !== undefined ? optionalText(input.notes) : existing.notes;
 
   let capacity = input.capacity_ml != null ? Number(input.capacity_ml) : existing.capacity_ml;
   let remaining = input.remaining_ml != null ? Number(input.remaining_ml) : existing.remaining_ml;
@@ -188,6 +196,7 @@ function updateKeg(kegId, input) {
     UPDATE kegs
     SET name = @name,
         brewery = @brewery,
+        beer_type = @beer_type,
         notes = @notes,
         capacity_ml = @capacity_ml,
         remaining_ml = @remaining_ml,
@@ -199,6 +208,7 @@ function updateKeg(kegId, input) {
     id: kegId,
     name,
     brewery,
+    beer_type: beerType,
     notes,
     capacity_ml: capacity,
     remaining_ml: remaining,
@@ -249,6 +259,7 @@ function assignKegToTap(tapId, input) {
     const created = createKeg({
       name: input.name,
       brewery: input.brewery,
+      beer_type: input.beer_type,
       notes: input.notes,
       capacity_ml: input.capacity_ml,
       remaining_ml: input.remaining_ml,
